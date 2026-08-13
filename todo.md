@@ -1,0 +1,36 @@
+# Project TODO
+
+- [x] Document UX personas, highest-risk tasks, and a Georgian usability-test plan without fabricated research data.
+- [x] Document NexaReply brand purpose, positioning, Georgian-first bilingual voice, naming rules, messaging, and visual identity principles.
+- [x] Add explicit English voice, tone, and wording guidance alongside the Georgian-first brand rules.
+- [x] Generate and persist a premium, calm, trustworthy Georgian B2B SaaS design system with accessibility, responsive, and delivery guidance.
+- [x] Document information architecture, route map, component boundaries, data contracts, organization isolation approach, and light/dark/system theme strategy.
+- [x] Document reusable component specifications, all interactive states, responsive behavior, and WCAG AA guidance.
+- [x] Create a fully Georgian public marketing site with hero, features, use cases, FAQ, pricing, legal/contact routes, SEO metadata, and a Demo Mode CTA.
+- [x] Add route-appropriate Georgian SEO and social metadata for all public pages.
+- [x] Add a dedicated Georgian use-cases section for target sales workflows on the public landing page.
+- [x] Implement unauthenticated Demo Mode with realistic TechZone Demo data and no login requirement.
+- [x] Implement multi-organization workspace shell with organization switcher, role-aware navigation, persistent theme switching, and responsive sidebar behavior.
+- [x] Implement an overview dashboard with AI status, plan usage, Page status, ticket indicators, quick actions, and recent conversation context.
+- [x] Add visible plan usage and AI reply quota status to the Overview dashboard.
+- [x] Implement Messenger-style conversation inbox with threaded messages, status labels, debounced search, filters, human takeover controls, and owner/ticket states.
+- [x] Implement editable AI reply suggestions with organization-aware tone selection, review/approve/send feedback, and safe no-invention demo behavior.
+- [x] Implement contacts, leads, draft orders, customer profiles, conversation history, deal stages, and export-placeholder states.
+- [x] Expand Leads and Contacts with a fuller profile, recent conversation history, and an export placeholder control.
+- [x] Add richer contact context to the Leads profile: latest activity, ticket or handoff state, source, preferred product summary, and key customer details.
+- [x] Implement products, knowledge-base, integration, AI-settings, billing, and notifications workspace views using compatible demo interactions.
+- [x] Implement demo onboarding for Page connection, AI persona setup, reply rules, and a production-readiness enablement explanation.
+- [x] Implement analytics views for response rate, conversion funnel, AI-versus-human replies, and daily message volume.
+- [x] Add an explicit response-rate metric to Analytics, separate from response speed.
+- [x] Model demo debounce behavior, escalation tickets, owner notification states, and human takeover audit events without requiring external credentials.
+- [x] Add inbound-message-tied AI draft debounce simulation, separate from search debounce, to the conversation workflow.
+- [x] Prepare secure disabled-by-default integration adapter contracts and managed-secret documentation for OpenAI, Meta Messenger, Telegram, encryption, database, and storage variables.
+- [x] Add restrained Georgian microcopy, loading states, empty states, success feedback, reduced-motion behavior, and no emoji-based interface icons.
+- [x] Add explicit loading and pending states for AI draft generation, ticket creation, and export placeholder interactions.
+- [x] Evaluate compatible component patterns and record the component selection note in the design-system documentation.
+- [x] Write and run Vitest coverage for critical demo workflow logic and validate responsive, accessibility, and performance requirements.
+- [x] Produce explicit production build and heavy-view performance validation evidence, then document the results.
+- [x] Collect documented heavy-view route-load or interaction timing evidence for Inbox and Analytics.
+- [x] Document the remaining large-chunk advisory as an explicit limitation or implement further chunk splitting and revalidate the build.
+- [x] Conduct senior implementation review, resolve identified issues, and create QA and technical review documentation.
+- [x] Apply or explicitly disposition final style-review findings and verify the chosen visual direction.
