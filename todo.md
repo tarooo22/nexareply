@@ -63,7 +63,10 @@
 - [x] Add cross-tenant integration tests proving one organization member cannot read or mutate another organization’s data.
 - [x] Add service/repository coverage proving ticket, notification, and background-job deduplication under repeated events.
 - [x] Add secret-boundary verification that integration settings remain server-only and are absent from public procedures.
-- [ ] Add a true two-organization integration test proving a member of organization A cannot read or mutate organization B data.
-- [ ] Add persisted repeated-event integration coverage for ticket, notification, and background-job deduplication.
-- [ ] Add public tRPC response tests proving integration settings are not exposed, while owner-only integration procedures reject non-owners.
+- [x] Add a true two-organization integration test proving a member of organization A cannot read or mutate organization B data.
+- [x] Add persisted repeated-event integration coverage for ticket, notification, and background-job deduplication.
+- [x] Add public tRPC response tests proving integration settings are not exposed, while owner-only integration procedures reject non-owners.
+- [x] Extend the real two-organization test to prove an organization A member cannot mutate organization B data.
+- [x] Verify every exposed public Demo data response omits integration-setting and secret fields, while non-owners are denied owner integration state access.
+- [x] Extend public secret-boundary integration coverage to Demo lead and draft-order CSV export responses.
 - [x] Update README, architecture, QA checklist, and Demo-versus-production documentation for the persistent foundation.
