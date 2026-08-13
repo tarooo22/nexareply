@@ -8,6 +8,13 @@
       "when": 1786654810207,
       "tag": "0000_even_multiple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1786658548884,
+      "tag": "0001_normal_loa",
+      "breakpoints": true
     }
   ]
 }

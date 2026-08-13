@@ -1,0 +1,395 @@
+import { and, asc, desc, eq, like, or, sql } from "drizzle-orm";
+import {
+  auditEvents,
+  backgroundJobs,
+  conversations,
+  draftOrders,
+  integrationSettings,
+  knowledgeFacts,
+  leads,
+  messages,
+  notifications,
+  orderItems,
+  organizationMemberships,
+  organizations,
+  plans,
+  productImports,
+  productVariants,
+  products,
+  tickets,
+  usageCounters,
+  users,
+} from "../drizzle/schema";
+import { getDb } from "./db";
+
+export type WorkspaceRole = "owner" | "operator";
+export type WorkspaceScope = { organizationId: number; role: WorkspaceRole; isDemo: boolean; actorUserId?: number };
+
+const DEMO_SLUG = "techzone-demo";
+
+async function requireDb() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+  return db;
+}
+
+export const nexareplyRepository = {
+  async getOrganizationBySlug(slug: string) {
+    const db = await requireDb();
+    return (await db.select().from(organizations).where(eq(organizations.slug, slug)).limit(1))[0];
+  },
+
+  async getPublicDemoScope(): Promise<WorkspaceScope> {
+    const organization = await this.getOrganizationBySlug(DEMO_SLUG);
+    if (!organization || organization.mode !== "demo") throw new Error("Demo organization is not initialized");
+    return { organizationId: organization.id, role: "owner", isDemo: true };
+  },
+
+  async getWorkspaceScope(userId: number, organizationId: number): Promise<WorkspaceScope | null> {
+    const db = await requireDb();
+    const membership = (await db.select().from(organizationMemberships).where(and(
+      eq(organizationMemberships.organizationId, organizationId),
+      eq(organizationMemberships.userId, userId),
+    )).limit(1))[0];
+    if (!membership) return null;
+    return { organizationId, role: membership.role, isDemo: false, actorUserId: userId };
+  },
+
+  async listOrganizationsForUser(userId: number) {
+    const db = await requireDb();
+    return db.select({ organization: organizations, membership: organizationMemberships })
+      .from(organizationMemberships)
+      .innerJoin(organizations, eq(organizationMemberships.organizationId, organizations.id))
+      .where(eq(organizationMemberships.userId, userId));
+  },
+
+  async ensureWorkspaceForUser(userId: number, userName?: string | null) {
+    const existing = await this.listOrganizationsForUser(userId);
+    if (existing.length) return existing;
+    const db = await requireDb();
+    const plan = await this.ensurePlan();
+    const slug = `workspace-${userId}`;
+    await db.insert(organizations).values({ name: `${userName?.trim() || "ჩემი"} Workspace`, slug, mode: "live", planId: plan.id });
+    const organization = (await db.select().from(organizations).where(eq(organizations.slug, slug)).limit(1))[0];
+    if (!organization) throw new Error("Workspace bootstrap failed");
+    await db.insert(organizationMemberships).values({ organizationId: organization.id, userId, role: "owner" });
+    await this.ensureIntegrationStates({ organizationId: organization.id, role: "owner", isDemo: false, actorUserId: userId });
+    return this.listOrganizationsForUser(userId);
+  },
+
+  async listMemberships(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return db.select({ membership: organizationMemberships, user: users })
+      .from(organizationMemberships)
+      .innerJoin(users, eq(organizationMemberships.userId, users.id))
+      .where(eq(organizationMemberships.organizationId, scope.organizationId));
+  },
+
+  async setMembershipRole(scope: WorkspaceScope, userId: number, role: WorkspaceRole) {
+    if (scope.actorUserId === userId && role !== "owner") throw new Error("ორგანიზაციის ერთადერთი მფლობელის როლის შემცირება დაუშვებელია.");
+    const db = await requireDb();
+    const member = (await db.select().from(organizationMemberships).where(and(eq(organizationMemberships.organizationId, scope.organizationId), eq(organizationMemberships.userId, userId))).limit(1))[0];
+    if (!member) throw new Error("ორგანიზაციის წევრი ვერ მოიძებნა.");
+    await db.update(organizationMemberships).set({ role }).where(eq(organizationMemberships.id, member.id));
+    await this.addAudit(scope, "membership.role_updated", "membership", String(member.id), { userId, role });
+    return { ...member, role };
+  },
+
+  async listProducts(scope: WorkspaceScope, query?: string, includeArchived = false) {
+    const db = await requireDb();
+    const conditions = [eq(products.organizationId, scope.organizationId)];
+    if (!includeArchived) conditions.push(eq(products.active, true));
+    if (query?.trim()) {
+      const term = `%${query.trim()}%`;
+      conditions.push(or(like(products.brand, term), like(products.model, term), like(productVariants.color, term))!);
+    }
+    return db.select({ product: products, variant: productVariants })
+      .from(products)
+      .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.organizationId, scope.organizationId)))
+      .where(and(...conditions))
+      .orderBy(asc(products.brand), asc(products.model));
+  },
+
+  async getOverview(scope: WorkspaceScope) {
+    const db = await requireDb();
+    const organization = await this.getOrganization(scope);
+    const [conversationCount] = await db.select({ value: sql<number>`count(*)` }).from(conversations).where(eq(conversations.organizationId, scope.organizationId));
+    const [ticketCount] = await db.select({ value: sql<number>`count(*)` }).from(tickets).where(and(eq(tickets.organizationId, scope.organizationId), eq(tickets.status, "open")));
+    const [leadCount] = await db.select({ value: sql<number>`count(*)` }).from(leads).where(and(eq(leads.organizationId, scope.organizationId), eq(leads.stage, "qualified")));
+    const usage = await this.ensureUsageCounter(scope, new Date().toISOString().slice(0, 7));
+    return {
+      organization,
+      conversationCount: Number(conversationCount?.value ?? 0),
+      ticketCount: Number(ticketCount?.value ?? 0),
+      qualifiedLeadCount: Number(leadCount?.value ?? 0),
+      usage,
+    };
+  },
+
+  async getAnalytics(scope: WorkspaceScope) {
+    const db = await requireDb();
+    const queryCount = async (table: any, where: any) => {
+      const [row] = await db.select({ value: sql<number>`count(*)` }).from(table).where(where);
+      return Number(row?.value ?? 0);
+    };
+    const conversationCount = await queryCount(conversations, eq(conversations.organizationId, scope.organizationId));
+    const aiReplies = await queryCount(messages, and(eq(messages.organizationId, scope.organizationId), eq(messages.sender, "ai")));
+    const humanReplies = await queryCount(messages, and(eq(messages.organizationId, scope.organizationId), eq(messages.sender, "operator")));
+    const qualifiedLeads = await queryCount(leads, and(eq(leads.organizationId, scope.organizationId), eq(leads.stage, "qualified")));
+    const handoffs = await queryCount(conversations, and(eq(conversations.organizationId, scope.organizationId), sql`(${conversations.humanActive} = true or ${conversations.aiState} = 'needs_human')`));
+    const draftOrderCount = await queryCount(draftOrders, eq(draftOrders.organizationId, scope.organizationId));
+    const dailyRows = await db.select({ sender: messages.sender, createdAt: messages.createdAt }).from(messages).where(eq(messages.organizationId, scope.organizationId));
+    const days = new Map<string, { day: string; ai: number; human: number }>();
+    dailyRows.forEach((row) => {
+      const day = new Date(row.createdAt).toLocaleDateString("en-US", { weekday: "short" });
+      const current = days.get(day) ?? { day, ai: 0, human: 0 };
+      if (row.sender === "ai") current.ai += 1;
+      if (row.sender === "operator") current.human += 1;
+      days.set(day, current);
+    });
+    return { conversationCount, aiReplies, humanReplies, qualifiedLeads, handoffs, draftOrderCount, responseRate: conversationCount ? Math.round(((aiReplies + humanReplies) / conversationCount) * 100) : 0, dailyVolume: Array.from(days.values()) };
+  },
+
+  async createProduct(scope: WorkspaceScope, input: { brand: string; model: string; sku: string; storage: string; color: string; priceGel: string; stock: number; installment: string; warranty: string }) {
+    const db = await requireDb();
+    await db.insert(products).values({ organizationId: scope.organizationId, brand: input.brand, model: input.model, sku: input.sku });
+    const product = (await db.select().from(products).where(and(eq(products.organizationId, scope.organizationId), eq(products.sku, input.sku))).limit(1))[0];
+    if (!product) throw new Error("Product creation failed");
+    await db.insert(productVariants).values({
+      organizationId: scope.organizationId,
+      productId: product.id,
+      sku: `${input.sku}-default`,
+      storage: input.storage,
+      color: input.color,
+      priceGel: input.priceGel,
+      stock: input.stock,
+      installment: input.installment,
+      warranty: input.warranty,
+    });
+    await this.addAudit(scope, "product.created", "product", String(product.id), { sku: input.sku });
+    return product;
+  },
+
+  async createProductImport(scope: WorkspaceScope, input: { fileName: string; format: "csv" | "xlsx"; status: "preview" | "completed" | "failed"; validRows: number; invalidRows: number; errors: unknown }) {
+    const db = await requireDb();
+    await db.insert(productImports).values({ organizationId: scope.organizationId, createdByUserId: scope.actorUserId, fileName: input.fileName, format: input.format, status: input.status, validRows: input.validRows, invalidRows: input.invalidRows, errors: input.errors as Record<string, unknown> });
+    const record = (await db.select().from(productImports).where(and(eq(productImports.organizationId, scope.organizationId), eq(productImports.fileName, input.fileName))).orderBy(desc(productImports.id)).limit(1))[0];
+    if (!record) throw new Error("Import preview could not be created");
+    return record.id;
+  },
+
+  async finishProductImport(scope: WorkspaceScope, importId: number, validRows: number, errors: unknown) {
+    const db = await requireDb();
+    const errorRows = Array.isArray(errors) ? errors.length : 0;
+    await db.update(productImports).set({ status: errorRows ? "failed" : "completed", validRows, invalidRows: errorRows, errors: errors as Record<string, unknown> }).where(and(eq(productImports.id, importId), eq(productImports.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "product_import.completed", "product_import", String(importId), { validRows, invalidRows: errorRows });
+  },
+
+  async updateProduct(scope: WorkspaceScope, productId: number, input: Partial<{ brand: string; model: string; storage: string; color: string; priceGel: string; stock: number; installment: string; warranty: string }>) {
+    const db = await requireDb();
+    const current = (await db.select().from(products).where(and(eq(products.id, productId), eq(products.organizationId, scope.organizationId))).limit(1))[0];
+    if (!current) throw new Error("Product not found");
+    const productPatch: Record<string, unknown> = {};
+    if (input.brand) productPatch.brand = input.brand;
+    if (input.model) productPatch.model = input.model;
+    if (Object.keys(productPatch).length) await db.update(products).set(productPatch).where(and(eq(products.id, productId), eq(products.organizationId, scope.organizationId)));
+    const variantPatch: Record<string, unknown> = {};
+    (["storage", "color", "priceGel", "stock", "installment", "warranty"] as const).forEach((key) => {
+      if (input[key] !== undefined) variantPatch[key] = input[key];
+    });
+    if (Object.keys(variantPatch).length) await db.update(productVariants).set(variantPatch).where(and(eq(productVariants.productId, productId), eq(productVariants.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "product.updated", "product", String(productId), input);
+  },
+
+  async archiveProduct(scope: WorkspaceScope, productId: number) {
+    const db = await requireDb();
+    await db.update(products).set({ active: false, archivedAt: new Date() }).where(and(eq(products.id, productId), eq(products.organizationId, scope.organizationId)));
+    await db.update(productVariants).set({ active: false }).where(and(eq(productVariants.productId, productId), eq(productVariants.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "product.archived", "product", String(productId), {});
+  },
+
+  async listKnowledgeFacts(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return db.select().from(knowledgeFacts).where(and(eq(knowledgeFacts.organizationId, scope.organizationId), eq(knowledgeFacts.active, true))).orderBy(asc(knowledgeFacts.id));
+  },
+
+  async createKnowledgeFact(scope: WorkspaceScope, title: string, body: string, category = "general") {
+    const db = await requireDb();
+    await db.insert(knowledgeFacts).values({ organizationId: scope.organizationId, title, body, category });
+    await this.addAudit(scope, "knowledge.created", "knowledge_fact", title, {});
+  },
+
+  async updateKnowledgeFact(scope: WorkspaceScope, id: number, input: { title: string; body: string; category?: string }) {
+    const db = await requireDb();
+    await db.update(knowledgeFacts).set({ title: input.title, body: input.body, category: input.category ?? "general" }).where(and(eq(knowledgeFacts.id, id), eq(knowledgeFacts.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "knowledge.updated", "knowledge_fact", String(id), {});
+  },
+
+  async deleteKnowledgeFact(scope: WorkspaceScope, id: number) {
+    const db = await requireDb();
+    await db.update(knowledgeFacts).set({ active: false }).where(and(eq(knowledgeFacts.id, id), eq(knowledgeFacts.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "knowledge.archived", "knowledge_fact", String(id), {});
+  },
+
+  async listConversations(scope: WorkspaceScope, query?: string, status?: "open" | "pending" | "closed") {
+    const db = await requireDb();
+    const conditions = [eq(conversations.organizationId, scope.organizationId)];
+    if (query?.trim()) {
+      const term = `%${query.trim()}%`;
+      conditions.push(or(like(conversations.customerName, term), like(conversations.customerPhone, term), like(conversations.preview, term))!);
+    }
+    if (status) conditions.push(eq(conversations.status, status));
+    return db.select().from(conversations).where(and(...conditions)).orderBy(desc(conversations.updatedAt));
+  },
+
+  async listMessages(scope: WorkspaceScope, conversationId: number) {
+    const db = await requireDb();
+    return db.select().from(messages).where(and(eq(messages.organizationId, scope.organizationId), eq(messages.conversationId, conversationId))).orderBy(asc(messages.createdAt));
+  },
+
+  async addMessage(scope: WorkspaceScope, input: { conversationId: number; sender: "customer" | "ai" | "operator" | "system"; body: string; source: "demo" | "manual" | "ai" | "meta" | "system"; inboundEventId?: string; isDraft?: boolean; approvedAt?: Date | null }) {
+    const db = await requireDb();
+    await db.insert(messages).values({ organizationId: scope.organizationId, ...input });
+    await db.update(conversations).set({ preview: input.body, lastMessageAt: new Date(), ...(input.sender === "customer" ? { lastInboundAt: new Date() } : {}) }).where(and(eq(conversations.id, input.conversationId), eq(conversations.organizationId, scope.organizationId)));
+  },
+
+  async setHumanTakeover(scope: WorkspaceScope, conversationId: number, active: boolean) {
+    const db = await requireDb();
+    await db.update(conversations).set({ humanActive: active, aiState: active ? "paused" : "active", status: active ? "pending" : "open" }).where(and(eq(conversations.id, conversationId), eq(conversations.organizationId, scope.organizationId)));
+    await this.addMessage(scope, { conversationId, sender: "system", source: "system", body: active ? "ადამიანმა ჩაიბარა საუბარი" : "AI პასუხები განახლდა" });
+    await this.addAudit(scope, active ? "conversation.human_takeover" : "conversation.ai_resumed", "conversation", String(conversationId), {});
+  },
+
+  async pauseAiForNeedsHuman(scope: WorkspaceScope, conversationId: number) {
+    const db = await requireDb();
+    await db.update(conversations).set({ aiState: "needs_human", status: "pending" }).where(and(eq(conversations.id, conversationId), eq(conversations.organizationId, scope.organizationId)));
+  },
+
+  async getActiveTicket(scope: WorkspaceScope, conversationId: number) {
+    const db = await requireDb();
+    return (await db.select().from(tickets).where(and(eq(tickets.organizationId, scope.organizationId), eq(tickets.conversationId, conversationId), eq(tickets.status, "open"))).limit(1))[0];
+  },
+
+  async createTicketOnce(scope: WorkspaceScope, conversationId: number, reason: string, priority: "normal" | "high", idempotencyKey: string) {
+    const db = await requireDb();
+    const found = (await db.select().from(tickets).where(and(eq(tickets.organizationId, scope.organizationId), eq(tickets.idempotencyKey, idempotencyKey))).limit(1))[0];
+    if (found) return found;
+    await db.insert(tickets).values({ organizationId: scope.organizationId, conversationId, reason, priority, idempotencyKey });
+    const ticket = (await db.select().from(tickets).where(and(eq(tickets.organizationId, scope.organizationId), eq(tickets.idempotencyKey, idempotencyKey))).limit(1))[0];
+    await db.update(conversations).set({ status: "pending", aiState: "needs_human" }).where(and(eq(conversations.id, conversationId), eq(conversations.organizationId, scope.organizationId)));
+    return ticket;
+  },
+
+  async listLeads(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return db.select().from(leads).where(eq(leads.organizationId, scope.organizationId)).orderBy(desc(leads.updatedAt));
+  },
+
+  async updateLeadStage(scope: WorkspaceScope, leadId: number, stage: "new" | "qualified" | "negotiating" | "draft_order" | "closed_lost") {
+    const db = await requireDb();
+    await db.update(leads).set({ stage }).where(and(eq(leads.id, leadId), eq(leads.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "lead.stage_updated", "lead", String(leadId), { stage });
+  },
+
+  async listDraftOrders(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return db.select().from(draftOrders).where(eq(draftOrders.organizationId, scope.organizationId)).orderBy(desc(draftOrders.updatedAt));
+  },
+
+  async listOrderItems(scope: WorkspaceScope, draftOrderId: number) {
+    const db = await requireDb();
+    return db.select().from(orderItems).where(and(eq(orderItems.organizationId, scope.organizationId), eq(orderItems.draftOrderId, draftOrderId)));
+  },
+
+  async listNotifications(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return db.select().from(notifications).where(eq(notifications.organizationId, scope.organizationId)).orderBy(desc(notifications.createdAt));
+  },
+
+  async markNotificationsRead(scope: WorkspaceScope, ids?: number[]) {
+    const db = await requireDb();
+    if (!ids?.length) await db.update(notifications).set({ readAt: new Date() }).where(and(eq(notifications.organizationId, scope.organizationId), sql`${notifications.readAt} is null`));
+    else for (const id of ids) await db.update(notifications).set({ readAt: new Date() }).where(and(eq(notifications.id, id), eq(notifications.organizationId, scope.organizationId)));
+  },
+
+  async createNotificationOnce(scope: WorkspaceScope, input: { type: "human_takeover" | "high_priority_lead" | "needs_human" | "ai_paused"; title: string; body: string; relatedConversationId?: number; dedupeKey: string }) {
+    const db = await requireDb();
+    const found = (await db.select().from(notifications).where(and(eq(notifications.organizationId, scope.organizationId), eq(notifications.dedupeKey, input.dedupeKey))).limit(1))[0];
+    if (found) return found;
+    await db.insert(notifications).values({ organizationId: scope.organizationId, ...input });
+    return (await db.select().from(notifications).where(and(eq(notifications.organizationId, scope.organizationId), eq(notifications.dedupeKey, input.dedupeKey))).limit(1))[0];
+  },
+
+  async scheduleConversationProcessing(scope: WorkspaceScope, conversationId: number, latestInboundEventId: string, scheduledAt: Date) {
+    const db = await requireDb();
+    const active = (await db.select().from(backgroundJobs).where(and(eq(backgroundJobs.organizationId, scope.organizationId), eq(backgroundJobs.conversationId, conversationId), eq(backgroundJobs.type, "process_conversation"), eq(backgroundJobs.status, "pending"))).limit(1))[0];
+    if (active) {
+      await db.update(backgroundJobs).set({ scheduledAt, payload: { latestInboundEventId } }).where(eq(backgroundJobs.id, active.id));
+      return active.id;
+    }
+    const dedupeKey = `process:${conversationId}:${latestInboundEventId}`;
+    await db.insert(backgroundJobs).values({ organizationId: scope.organizationId, conversationId, type: "process_conversation", status: "pending", dedupeKey, scheduledAt, payload: { latestInboundEventId } });
+    return (await db.select().from(backgroundJobs).where(and(eq(backgroundJobs.organizationId, scope.organizationId), eq(backgroundJobs.dedupeKey, dedupeKey))).limit(1))[0]?.id;
+  },
+
+  async dueConversationJobs(limit = 20) {
+    const db = await requireDb();
+    return db.select().from(backgroundJobs).where(and(eq(backgroundJobs.type, "process_conversation"), eq(backgroundJobs.status, "pending"), sql`${backgroundJobs.scheduledAt} <= now()`)).orderBy(asc(backgroundJobs.scheduledAt)).limit(limit);
+  },
+
+  async markJob(scope: WorkspaceScope, jobId: number, status: "processing" | "completed" | "failed", lastError?: string) {
+    const db = await requireDb();
+    await db.update(backgroundJobs).set({ status, attempts: sql`${backgroundJobs.attempts} + 1`, ...(status === "completed" ? { processedAt: new Date() } : {}), ...(lastError ? { lastError } : {}) }).where(and(eq(backgroundJobs.id, jobId), eq(backgroundJobs.organizationId, scope.organizationId)));
+  },
+
+  async getConversation(scope: WorkspaceScope, conversationId: number) {
+    const db = await requireDb();
+    return (await db.select().from(conversations).where(and(eq(conversations.id, conversationId), eq(conversations.organizationId, scope.organizationId))).limit(1))[0];
+  },
+
+  async listCatalogFacts(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return db.select({ product: products, variant: productVariants }).from(products).innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.organizationId, scope.organizationId))).where(and(eq(products.organizationId, scope.organizationId), eq(products.active, true), eq(productVariants.active, true)));
+  },
+
+  async getOrganization(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return (await db.select().from(organizations).where(eq(organizations.id, scope.organizationId)).limit(1))[0];
+  },
+
+  async addAudit(scope: WorkspaceScope, action: string, targetType: string, targetId: string, payload: unknown) {
+    const db = await requireDb();
+    await db.insert(auditEvents).values({ organizationId: scope.organizationId, actorUserId: scope.actorUserId, action, targetType, targetId, payload: payload as Record<string, unknown> });
+  },
+
+  async ensureUsageCounter(scope: WorkspaceScope, periodKey: string) {
+    const db = await requireDb();
+    const found = (await db.select().from(usageCounters).where(and(eq(usageCounters.organizationId, scope.organizationId), eq(usageCounters.periodKey, periodKey))).limit(1))[0];
+    if (found) return found;
+    await db.insert(usageCounters).values({ organizationId: scope.organizationId, periodKey });
+    return (await db.select().from(usageCounters).where(and(eq(usageCounters.organizationId, scope.organizationId), eq(usageCounters.periodKey, periodKey))).limit(1))[0];
+  },
+
+  async ensureIntegrationStates(scope: WorkspaceScope) {
+    const db = await requireDb();
+    for (const provider of ["meta", "openai", "telegram"] as const) {
+      const existing = (await db.select().from(integrationSettings).where(and(eq(integrationSettings.organizationId, scope.organizationId), eq(integrationSettings.provider, provider))).limit(1))[0];
+      if (!existing) await db.insert(integrationSettings).values({ organizationId: scope.organizationId, provider, status: "unconfigured" });
+    }
+  },
+
+  async listIntegrationStates(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return db.select().from(integrationSettings).where(eq(integrationSettings.organizationId, scope.organizationId));
+  },
+
+  async ensurePlan() {
+    const db = await requireDb();
+    const existing = (await db.select().from(plans).where(eq(plans.code, "growth-demo")).limit(1))[0];
+    if (existing) return existing;
+    await db.insert(plans).values({ code: "growth-demo", name: "Growth Demo", monthlyReplyQuota: 5000 });
+    return (await db.select().from(plans).where(eq(plans.code, "growth-demo")).limit(1))[0]!;
+  },
+};
+
+export { DEMO_SLUG };

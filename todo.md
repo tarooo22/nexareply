@@ -34,3 +34,36 @@
 - [x] Document the remaining large-chunk advisory as an explicit limitation or implement further chunk splitting and revalidate the build.
 - [x] Conduct senior implementation review, resolve identified issues, and create QA and technical review documentation.
 - [x] Apply or explicitly disposition final style-review findings and verify the chosen visual direction.
+- [x] Prepare a detailed Georgian functional report describing implemented capabilities, Demo Mode behavior, production limitations, and enabled routes.
+- [x] Capture and deliver current screenshots of the public site and core Demo workspace views.
+- [x] Deliver the prepared screenshot set with clear labels for each public and Demo workspace view.
+- [x] Confirm the approved MySQL/TiDB and OAuth persistent-foundation architecture, including a database-agnostic repository/service boundary for future migration.
+- [x] Document the explicit production limitation: 10-second debounce needs a future durable-worker hosting configuration for guarantees.
+- [x] Assess the current database, authentication, scheduling, and deployment constraints against the persistent-foundation brief.
+- [x] Design and document organization tenancy, owner/operator authorization, persistence contracts, job lifecycle, and Demo AI safety rules.
+- [x] Add database migrations for organizations, memberships, plans, usage, catalog, knowledge, conversations, tickets, leads, draft orders, audit events, jobs, notifications, and integration settings.
+- [x] Implement organization-scoped protected server procedures and seed TechZone Demo data into persistent storage.
+- [x] Convert existing Products, Knowledge, Inbox, Leads, Orders, Analytics, Notifications, and role-aware workspace UI from local state to persisted tRPC data flows.
+- [x] Convert the existing workspace shell, organization switcher, and role-aware navigation to persisted membership-backed tRPC data.
+- [x] Verify owner/operator workspace shell differences are driven by persisted membership rather than local role state.
+- [x] Add UI-level verification that persisted owner membership shows owner-only navigation and operator membership hides it.
+- [x] Add integration-level UI verification that `AuthenticatedWorkspace` derives owner/operator navigation from mocked persisted `workspace.organizations` membership data.
+- [x] Implement actual validated CSV/XLSX catalog import with preview/error reporting and persisted rows.
+- [x] Implement actual CSV export for persisted leads and draft orders.
+- [x] Wire and verify a visible persisted draft-order CSV export action in the workspace UI.
+- [x] Implement a database-backed Demo AI provider, safe unknown-question escalation, idempotent ticket/alert behavior, and human-takeover blocking.
+- [x] Implement a durable job-table adapter for per-conversation debounce processing and document worker activation prerequisites.
+- [x] Add protected workspace access and owner/operator role enforcement while preserving an explicitly separate public Demo Mode.
+- [x] Enforce and test owner-only protected workspace procedures for membership and integration-sensitive actions.
+- [x] Implement owner-only membership-management procedures for listing and changing organization member roles.
+- [x] Add router-level tests that prove an operator is forbidden from membership and integration-sensitive owner-only procedures.
+- [x] Add router-level coverage proving an operator is forbidden from membership role mutation and owner-only catalog import commit.
+- [x] Add automated verification for persistence, tenant isolation, import/export, Demo AI safety, takeover blocking, idempotency, and secret boundaries.
+- [x] Add tests for persisted CSV export output for leads and draft orders.
+- [x] Add cross-tenant integration tests proving one organization member cannot read or mutate another organization’s data.
+- [x] Add service/repository coverage proving ticket, notification, and background-job deduplication under repeated events.
+- [x] Add secret-boundary verification that integration settings remain server-only and are absent from public procedures.
+- [ ] Add a true two-organization integration test proving a member of organization A cannot read or mutate organization B data.
+- [ ] Add persisted repeated-event integration coverage for ticket, notification, and background-job deduplication.
+- [ ] Add public tRPC response tests proving integration settings are not exposed, while owner-only integration procedures reject non-owners.
+- [x] Update README, architecture, QA checklist, and Demo-versus-production documentation for the persistent foundation.
