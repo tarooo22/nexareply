@@ -64,6 +64,20 @@
       "when": 1786724671731,
       "tag": "0008_hard_puppet_master",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1786725446009,
+      "tag": "0009_acoustic_ben_grimm",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1786725822056,
+      "tag": "0010_panoramic_thunderball",
+      "breakpoints": true
     }
   ]
 }

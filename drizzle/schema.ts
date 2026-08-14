@@ -149,6 +149,28 @@ export const productVariants = mysqlTable("product_variants", {
   index("variants_org_product_idx").on(table.organizationId, table.productId),
 ]);
 
+/** Object-storage references only; product bytes are never stored in MySQL. */
+export const productAssets = mysqlTable("product_assets", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  productId: int("productId").notNull(),
+  storageKey: varchar("storageKey", { length: 512 }).notNull(),
+  mimeType: varchar("mimeType", { length: 120 }).notNull(),
+  byteSize: int("byteSize").notNull(),
+  width: int("width").notNull(),
+  height: int("height").notNull(),
+  altText: varchar("altText", { length: 280 }),
+  sortOrder: int("sortOrder").notNull().default(0),
+  isPrimary: boolean("isPrimary").notNull().default(false),
+  createdByUserId: int("createdByUserId"),
+  deletedAt: timestamp("deletedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("product_assets_org_product_active_idx").on(table.organizationId, table.productId, table.deletedAt),
+  index("product_assets_org_primary_idx").on(table.organizationId, table.productId, table.isPrimary),
+]);
+
 export const productImports = mysqlTable("product_imports", {
   id: int("id").autoincrement().primaryKey(),
   organizationId: int("organizationId").notNull(),
@@ -172,6 +194,39 @@ export const knowledgeFacts = mysqlTable("knowledge_facts", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => [index("knowledge_org_active_idx").on(table.organizationId, table.active)]);
+
+/** Owner-submitted business context. Facts extracted from it remain drafts until approved. */
+export const knowledgeSources = mysqlTable("knowledge_sources", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  sourceType: mysqlEnum("sourceType", ["composer"]).notNull().default("composer"),
+  title: varchar("title", { length: 180 }).notNull(),
+  originalText: text("originalText").notNull(),
+  status: mysqlEnum("status", ["draft", "partially_approved", "approved", "archived"]).notNull().default("draft"),
+  version: int("version").notNull().default(1),
+  createdByUserId: int("createdByUserId"),
+  approvedByUserId: int("approvedByUserId"),
+  approvedAt: timestamp("approvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [index("knowledge_sources_org_status_idx").on(table.organizationId, table.status, table.createdAt)]);
+
+/** Extracted normalized statements. Pending/rejected rows are never used by the assistant. */
+export const knowledgeDraftFacts = mysqlTable("knowledge_draft_facts", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  sourceId: int("sourceId").notNull(),
+  title: varchar("title", { length: 180 }).notNull(),
+  body: text("body").notNull(),
+  category: varchar("category", { length: 80 }).notNull().default("general"),
+  confidence: int("confidence").notNull().default(0),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
+  approvedKnowledgeFactId: int("approvedKnowledgeFactId"),
+  reviewedByUserId: int("reviewedByUserId"),
+  reviewedAt: timestamp("reviewedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [index("knowledge_drafts_org_source_status_idx").on(table.organizationId, table.sourceId, table.status)]);
 
 export const knowledgeDocuments = mysqlTable("knowledge_documents", {
   id: int("id").autoincrement().primaryKey(),

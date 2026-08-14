@@ -7,6 +7,8 @@ import {
   draftOrders,
   integrationSettings,
   knowledgeFacts,
+  knowledgeDraftFacts,
+  knowledgeSources,
   leads,
   metaConnections,
   metaOauthSessions,
@@ -20,6 +22,7 @@ import {
   organizations,
   plans,
   productImports,
+  productAssets,
   productVariants,
   products,
   tickets,
@@ -193,6 +196,52 @@ export const nexareplyRepository = {
       .orderBy(asc(products.brand), asc(products.model));
   },
 
+  async listProductAssets(scope: WorkspaceScope, productId?: number) {
+    const db = await requireDb();
+    const conditions = [eq(productAssets.organizationId, scope.organizationId), sql`${productAssets.deletedAt} is null`];
+    if (productId) conditions.push(eq(productAssets.productId, productId));
+    return db.select().from(productAssets).where(and(...conditions)).orderBy(asc(productAssets.productId), desc(productAssets.isPrimary), asc(productAssets.sortOrder), asc(productAssets.id));
+  },
+
+  async createProductAsset(scope: WorkspaceScope, input: { productId: number; storageKey: string; mimeType: string; byteSize: number; width: number; height: number; altText?: string | null }) {
+    const db = await requireDb();
+    const product = (await db.select().from(products).where(and(eq(products.id, input.productId), eq(products.organizationId, scope.organizationId))).limit(1))[0];
+    if (!product) throw new Error("Product not found.");
+    const activeAssets = await this.listProductAssets(scope, input.productId);
+    if (activeAssets.length >= 6) throw new Error("ერთ პროდუქტს მაქსიმუმ 6 ფოტო შეიძლება ჰქონდეს.");
+    const isPrimary = activeAssets.length === 0;
+    if (isPrimary) await db.update(productAssets).set({ isPrimary: false }).where(and(eq(productAssets.organizationId, scope.organizationId), eq(productAssets.productId, input.productId)));
+    await db.insert(productAssets).values({ ...input, organizationId: scope.organizationId, createdByUserId: scope.actorUserId, sortOrder: activeAssets.length, isPrimary });
+    const asset = (await db.select().from(productAssets).where(and(eq(productAssets.organizationId, scope.organizationId), eq(productAssets.storageKey, input.storageKey))).limit(1))[0];
+    if (!asset) throw new Error("Product image record could not be saved.");
+    await this.addAudit(scope, "product_asset.created", "product_asset", String(asset.id), { productId: input.productId, mimeType: input.mimeType, byteSize: input.byteSize, width: input.width, height: input.height });
+    return asset;
+  },
+
+  async updateProductAsset(scope: WorkspaceScope, assetId: number, input: { altText?: string | null; sortOrder?: number; isPrimary?: boolean }) {
+    const db = await requireDb();
+    const asset = (await db.select().from(productAssets).where(and(eq(productAssets.id, assetId), eq(productAssets.organizationId, scope.organizationId), sql`${productAssets.deletedAt} is null`)).limit(1))[0];
+    if (!asset) throw new Error("Product image not found.");
+    if (input.isPrimary) await db.update(productAssets).set({ isPrimary: false }).where(and(eq(productAssets.organizationId, scope.organizationId), eq(productAssets.productId, asset.productId), sql`${productAssets.deletedAt} is null`));
+    const patch: Record<string, unknown> = {};
+    if (input.altText !== undefined) patch.altText = input.altText;
+    if (input.sortOrder !== undefined) patch.sortOrder = input.sortOrder;
+    if (input.isPrimary !== undefined) patch.isPrimary = input.isPrimary;
+    if (Object.keys(patch).length) await db.update(productAssets).set(patch).where(and(eq(productAssets.id, assetId), eq(productAssets.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "product_asset.updated", "product_asset", String(assetId), { productId: asset.productId, changed: Object.keys(patch) });
+    return (await db.select().from(productAssets).where(and(eq(productAssets.id, assetId), eq(productAssets.organizationId, scope.organizationId))).limit(1))[0]!;
+  },
+
+  async archiveProductAsset(scope: WorkspaceScope, assetId: number) {
+    const db = await requireDb();
+    const asset = (await db.select().from(productAssets).where(and(eq(productAssets.id, assetId), eq(productAssets.organizationId, scope.organizationId), sql`${productAssets.deletedAt} is null`)).limit(1))[0];
+    if (!asset) throw new Error("Product image not found.");
+    await db.update(productAssets).set({ deletedAt: new Date(), isPrimary: false }).where(and(eq(productAssets.id, assetId), eq(productAssets.organizationId, scope.organizationId)));
+    const remaining = await this.listProductAssets(scope, asset.productId);
+    if (asset.isPrimary && remaining[0]) await db.update(productAssets).set({ isPrimary: true }).where(and(eq(productAssets.id, remaining[0].id), eq(productAssets.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "product_asset.archived", "product_asset", String(assetId), { productId: asset.productId });
+  },
+
   async getOverview(scope: WorkspaceScope) {
     const db = await requireDb();
     const organization = await this.getOrganization(scope);
@@ -317,6 +366,11 @@ export const nexareplyRepository = {
     await this.addAudit(scope, "product_import.completed", "product_import", String(importId), { validRows, invalidRows: errorRows });
   },
 
+  async listProductImports(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return db.select().from(productImports).where(eq(productImports.organizationId, scope.organizationId)).orderBy(desc(productImports.createdAt)).limit(12);
+  },
+
   async updateProduct(scope: WorkspaceScope, productId: number, input: Partial<{ brand: string; fragranceName: string; model: string; volume: string; storage: string; availability: string; color: string; description: string; priceGel: string; stock: number; installment: string; warranty: string }>) {
     const db = await requireDb();
     const current = (await db.select().from(products).where(and(eq(products.id, productId), eq(products.organizationId, scope.organizationId))).limit(1))[0];
@@ -366,6 +420,61 @@ export const nexareplyRepository = {
     const db = await requireDb();
     await db.update(knowledgeFacts).set({ active: false }).where(and(eq(knowledgeFacts.id, id), eq(knowledgeFacts.organizationId, scope.organizationId)));
     await this.addAudit(scope, "knowledge.archived", "knowledge_fact", String(id), {});
+  },
+
+  async createKnowledgeSourceWithDrafts(scope: WorkspaceScope, input: { title: string; originalText: string; items: Array<{ title: string; body: string; category: string; confidence: number }> }) {
+    const db = await requireDb();
+    await db.insert(knowledgeSources).values({ organizationId: scope.organizationId, title: input.title, originalText: input.originalText, createdByUserId: scope.actorUserId });
+    const source = (await db.select().from(knowledgeSources).where(and(eq(knowledgeSources.organizationId, scope.organizationId), eq(knowledgeSources.title, input.title))).orderBy(desc(knowledgeSources.id)).limit(1))[0];
+    if (!source) throw new Error("Knowledge source could not be saved.");
+    if (input.items.length) await db.insert(knowledgeDraftFacts).values(input.items.map((item) => ({ organizationId: scope.organizationId, sourceId: source.id, ...item, status: "pending" as const })));
+    await this.addAudit(scope, "knowledge_draft.generated", "knowledge_source", String(source.id), { itemCount: input.items.length });
+    return source;
+  },
+
+  async listKnowledgeDrafts(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return db.select({ source: knowledgeSources, draft: knowledgeDraftFacts })
+      .from(knowledgeDraftFacts)
+      .innerJoin(knowledgeSources, and(eq(knowledgeDraftFacts.sourceId, knowledgeSources.id), eq(knowledgeSources.organizationId, scope.organizationId)))
+      .where(eq(knowledgeDraftFacts.organizationId, scope.organizationId))
+      .orderBy(desc(knowledgeSources.createdAt), asc(knowledgeDraftFacts.id));
+  },
+
+  async approveKnowledgeDrafts(scope: WorkspaceScope, sourceId: number, draftIds: number[]) {
+    const db = await requireDb();
+    const source = (await db.select().from(knowledgeSources).where(and(eq(knowledgeSources.id, sourceId), eq(knowledgeSources.organizationId, scope.organizationId))).limit(1))[0];
+    if (!source || source.status === "archived") throw new Error("Knowledge source not found.");
+    const pending = (await db.select().from(knowledgeDraftFacts).where(and(eq(knowledgeDraftFacts.organizationId, scope.organizationId), eq(knowledgeDraftFacts.sourceId, sourceId), sql`${knowledgeDraftFacts.status} = 'pending'`)));
+    const selected = pending.filter((draft) => draftIds.includes(draft.id));
+    if (!selected.length) throw new Error("დასამტკიცებელი draft ვერ მოიძებნა.");
+    const now = new Date();
+    for (const draft of selected) {
+      await db.insert(knowledgeFacts).values({ organizationId: scope.organizationId, title: draft.title, body: draft.body, category: draft.category, active: true });
+      const fact = (await db.select().from(knowledgeFacts).where(and(eq(knowledgeFacts.organizationId, scope.organizationId), eq(knowledgeFacts.title, draft.title), eq(knowledgeFacts.body, draft.body))).orderBy(desc(knowledgeFacts.id)).limit(1))[0];
+      await db.update(knowledgeDraftFacts).set({ status: "approved", approvedKnowledgeFactId: fact?.id ?? null, reviewedByUserId: scope.actorUserId, reviewedAt: now }).where(and(eq(knowledgeDraftFacts.id, draft.id), eq(knowledgeDraftFacts.organizationId, scope.organizationId)));
+    }
+    const remaining = pending.length - selected.length;
+    await db.update(knowledgeSources).set({ status: remaining ? "partially_approved" : "approved", approvedByUserId: scope.actorUserId, approvedAt: remaining ? null : now }).where(and(eq(knowledgeSources.id, sourceId), eq(knowledgeSources.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "knowledge_draft.approved", "knowledge_source", String(sourceId), { approvedDraftIds: selected.map((draft) => draft.id) });
+    return this.listKnowledgeDrafts(scope);
+  },
+
+  async rejectKnowledgeDraft(scope: WorkspaceScope, draftId: number) {
+    const db = await requireDb();
+    const draft = (await db.select().from(knowledgeDraftFacts).where(and(eq(knowledgeDraftFacts.id, draftId), eq(knowledgeDraftFacts.organizationId, scope.organizationId), sql`${knowledgeDraftFacts.status} = 'pending'`)).limit(1))[0];
+    if (!draft) throw new Error("Knowledge draft not found.");
+    await db.update(knowledgeDraftFacts).set({ status: "rejected", reviewedByUserId: scope.actorUserId, reviewedAt: new Date() }).where(and(eq(knowledgeDraftFacts.id, draftId), eq(knowledgeDraftFacts.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "knowledge_draft.rejected", "knowledge_draft_fact", String(draftId), { sourceId: draft.sourceId });
+  },
+
+  async updateKnowledgeDraft(scope: WorkspaceScope, draftId: number, input: { title: string; body: string; category: string }) {
+    const db = await requireDb();
+    const draft = (await db.select().from(knowledgeDraftFacts).where(and(eq(knowledgeDraftFacts.id, draftId), eq(knowledgeDraftFacts.organizationId, scope.organizationId), sql`${knowledgeDraftFacts.status} = 'pending'`)).limit(1))[0];
+    if (!draft) throw new Error("Knowledge draft not found.");
+    await db.update(knowledgeDraftFacts).set(input).where(and(eq(knowledgeDraftFacts.id, draftId), eq(knowledgeDraftFacts.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "knowledge_draft.updated", "knowledge_draft_fact", String(draftId), { sourceId: draft.sourceId });
+    return (await db.select().from(knowledgeDraftFacts).where(and(eq(knowledgeDraftFacts.id, draftId), eq(knowledgeDraftFacts.organizationId, scope.organizationId))).limit(1))[0]!;
   },
 
   async listConversations(scope: WorkspaceScope, query?: string, status?: "open" | "pending" | "closed") {

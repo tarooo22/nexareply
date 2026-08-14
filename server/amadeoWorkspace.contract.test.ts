@@ -6,6 +6,7 @@ import * as db from "./db";
 import { createContext } from "./_core/context";
 import { createLocalSession } from "./customAuth";
 import { metaMessengerService } from "./metaMessengerService";
+import { knowledgeDraftService } from "./knowledgeDraftService";
 import { nexareplyRepository } from "./nexareplyRepository";
 import { appRouter } from "./routers";
 import { COOKIE_NAME } from "../shared/const";
@@ -91,5 +92,31 @@ describe("Amadeo workspace response contracts", () => {
 
     expect(dismiss).toHaveBeenCalledWith(scope);
     expect(restart).toHaveBeenCalledWith(scope);
+  });
+
+  it("returns product gallery metadata without leaking object-storage keys", async () => {
+    const api = await caller();
+    vi.spyOn(nexareplyRepository, "listProductAssets").mockResolvedValue([{ id: 12, organizationId: scope.organizationId, productId: 5, storageKey: "organizations/7001/products/5/private-object.png", mimeType: "image/png", byteSize: 2048, width: 640, height: 640, altText: "Rose Amber", sortOrder: 0, isPrimary: true, createdAt: new Date(), updatedAt: new Date() }] as never);
+    const assets = await api.nexareply.workspace.products.assets.list({ organizationId: scope.organizationId, productId: 5 });
+    expect(assets[0]).toMatchObject({ id: 12, productId: 5, mimeType: "image/png", isPrimary: true, url: "/manus-storage/organizations/7001/products/5/private-object.png" });
+    expect(JSON.stringify(assets)).not.toContain("storageKey");
+  });
+
+  it("keeps generated knowledge as owner-approved drafts before active facts are created", async () => {
+    const api = await caller();
+    const generated = vi.spyOn(knowledgeDraftService, "generate").mockResolvedValue({ id: 41, status: "draft" } as never);
+    vi.spyOn(nexareplyRepository, "listKnowledgeDrafts").mockResolvedValue([{ source: { id: 41, title: "წესები", originalText: "მიწოდება ხელმისაწვდომია", status: "draft", version: 1, createdAt: new Date(), updatedAt: new Date() }, draft: { id: 61, sourceId: 41, title: "მიწოდება", body: "მიწოდება ხელმისაწვდომია", category: "delivery", confidence: 90, status: "pending", approvedKnowledgeFactId: null, reviewedAt: null, createdAt: new Date(), updatedAt: new Date() } }] as never);
+    const approve = vi.spyOn(nexareplyRepository, "approveKnowledgeDrafts").mockResolvedValue([] as never);
+    const reject = vi.spyOn(nexareplyRepository, "rejectKnowledgeDraft").mockResolvedValue(undefined as never);
+
+    await expect(api.nexareply.workspace.knowledge.drafts.generate({ organizationId: scope.organizationId, title: "წესები", originalText: "Amadeo-ის მიწოდების პირობები დადასტურებულია." })).resolves.toMatchObject({ id: 41, status: "draft" });
+    const pending = await api.nexareply.workspace.knowledge.drafts.list({ organizationId: scope.organizationId });
+    await api.nexareply.workspace.knowledge.drafts.approve({ organizationId: scope.organizationId, sourceId: 41, draftIds: [61] });
+    await api.nexareply.workspace.knowledge.drafts.reject({ organizationId: scope.organizationId, draftId: 61 });
+
+    expect(generated).toHaveBeenCalledWith(scope, expect.objectContaining({ originalText: expect.stringContaining("მიწოდების") }));
+    expect(pending[0].draft).toMatchObject({ id: 61, status: "pending", category: "delivery" });
+    expect(approve).toHaveBeenCalledWith(scope, 41, [61]);
+    expect(reject).toHaveBeenCalledWith(scope, 61);
   });
 });

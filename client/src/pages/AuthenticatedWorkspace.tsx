@@ -3,7 +3,7 @@ import { WorkspaceNav, visibleWorkspaceNavigation } from "@/components/Workspace
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useTheme } from "@/contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
-import { AmadeoAlertsScreen, AmadeoAnalyticsScreen, AmadeoAssistantScreen, AmadeoCatalogScreen, AmadeoInboxScreen, AmadeoKnowledgeScreen, AmadeoOverviewScreen, AmadeoTicketsScreen } from "@/pages/workspace/AmadeoWorkspaceScreens";
+import { AmadeoAlertsScreen, AmadeoAnalyticsScreen, AmadeoAssistantScreen, AmadeoCatalogScreen, AmadeoInboxScreen, AmadeoKnowledgeComposerScreen, AmadeoOverviewScreen, AmadeoTicketsScreen } from "@/pages/workspace/AmadeoWorkspaceScreens";
 import { ArrowRight, Building2, CheckCircle2, ChevronDown, ExternalLink, Loader2, LockKeyhole, Menu, Monitor, Moon, RefreshCw, ShieldCheck, Sun, UserPlus, UsersRound } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
@@ -67,7 +67,7 @@ export default function AuthenticatedWorkspace() {
     const props = { organizationId: organization.id, role };
     if (currentSection === "inbox") return <AmadeoInboxScreen {...props} />;
     if (currentSection === "catalog") return <AmadeoCatalogScreen {...props} />;
-    if (currentSection === "knowledge") return <AmadeoKnowledgeScreen {...props} />;
+    if (currentSection === "knowledge") return <AmadeoKnowledgeComposerScreen {...props} />;
     if (currentSection === "assistant") return <AmadeoAssistantScreen {...props} />;
     if (currentSection === "tickets") return <AmadeoTicketsScreen {...props} />;
     if (currentSection === "analytics") return <AmadeoAnalyticsScreen {...props} />;

@@ -6,7 +6,10 @@ import { processDueConversationJobs } from "./jobWorker";
 import { commitCatalogImport, exportSalesCsv, previewCatalogImport } from "./importExportService";
 import { metaMessengerService } from "./metaMessengerService";
 import { invitationService } from "./invitationService";
+import { knowledgeDraftService } from "./knowledgeDraftService";
 import { nexareplyRepository, type WorkspaceScope } from "./nexareplyRepository";
+import { productAssetService } from "./productAssetService";
+import { storageGet } from "./storage";
 import { requireWorkspaceRole } from "./workspaceAuthorization";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
@@ -31,6 +34,13 @@ const mappingInput = z.object({
   availability: z.string().optional(), color: z.string().optional(), volume: z.string().optional(), storage: z.string().optional(), description: z.string().optional(), installment: z.string().optional(), warranty: z.string().optional(),
 }).refine((mapping) => Boolean(mapping.fragranceName || mapping.model), { message: "სურნელის სვეტი სავალდებულოა." });
 const uploadInput = z.object({ base64: z.string().min(1).max(10_000_000), fileName: z.string().min(5).max(255), mapping: mappingInput.optional() });
+const productAssetUploadInput = z.object({
+  productId: z.number().int().positive(),
+  base64: z.string().min(4).max(7_000_000),
+  fileName: z.string().min(1).max(255),
+  mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+  altText: z.string().trim().max(280).optional(),
+});
 
 function knowledgeDto(row: any) { return { id: row.id, title: row.title, body: row.body, category: row.category, active: row.active, createdAt: row.createdAt, updatedAt: row.updatedAt }; }
 function conversationDto(row: any) { return { id: row.id, leadId: row.leadId, customerName: row.customerName, customerPhone: row.customerPhone, status: row.status, humanActive: row.humanActive, aiState: row.aiState, priority: row.priority, preview: row.preview, preferredProduct: row.preferredProduct, lastInboundAt: row.lastInboundAt, lastMessageAt: row.lastMessageAt, createdAt: row.createdAt, updatedAt: row.updatedAt }; }
@@ -39,6 +49,8 @@ function alertDto(row: any) { return { id: row.id, type: row.type, title: row.ti
 function analyticsDto(row: any) { return { conversationCount: row.conversationCount, aiReplies: row.aiReplies, humanReplies: row.humanReplies, qualifiedLeads: row.qualifiedLeads, handoffs: row.handoffs, draftOrderCount: row.draftOrderCount, responseRate: row.responseRate, dailyVolume: row.dailyVolume.map((day: any) => ({ day: day.day, ai: day.ai, human: day.human })) }; }
 function ticketDto(row: any) { return { ticket: { id: row.ticket.id, conversationId: row.ticket.conversationId, reason: row.ticket.reason, status: row.ticket.status, priority: row.ticket.priority, createdAt: row.ticket.createdAt, updatedAt: row.ticket.updatedAt }, conversation: conversationDto(row.conversation) }; }
 function assistantDto(row: any) { return { aiPersona: row?.aiPersona ?? "Amadeo-ის სუნამოების კონსულტანტი", aiTone: row?.aiTone ?? "თბილი და კონკრეტული", replyLength: row?.replyLength ?? "normal", fallbackMessage: row?.fallbackMessage ?? "ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით." }; }
+async function productAssetDto(row: any) { const { url } = await storageGet(row.storageKey); return { id: row.id, productId: row.productId, url, mimeType: row.mimeType, byteSize: row.byteSize, width: row.width, height: row.height, altText: row.altText, sortOrder: row.sortOrder, isPrimary: row.isPrimary, createdAt: row.createdAt, updatedAt: row.updatedAt }; }
+function knowledgeDraftDto(row: any) { return { source: { id: row.source.id, title: row.source.title, originalText: row.source.originalText, status: row.source.status, version: row.source.version, createdAt: row.source.createdAt, updatedAt: row.source.updatedAt }, draft: { id: row.draft.id, sourceId: row.draft.sourceId, title: row.draft.title, body: row.draft.body, category: row.draft.category, confidence: row.draft.confidence, status: row.draft.status, approvedKnowledgeFactId: row.draft.approvedKnowledgeFactId, reviewedAt: row.draft.reviewedAt, createdAt: row.draft.createdAt, updatedAt: row.draft.updatedAt } }; }
 
 async function demoScope() {
   await seedAmadeoDemo();
@@ -122,12 +134,28 @@ export const nexareplyRouter = router({
       create: protectedProcedure.input(organizationInput.extend({ product: productInput })).mutation(async ({ ctx, input }) => nexareplyRepository.createProduct(await workspaceScope(ctx.user.id, input.organizationId), input.product)),
       update: protectedProcedure.input(organizationInput.extend({ productId: z.number().int().positive(), patch: productInput.partial() })).mutation(async ({ ctx, input }) => nexareplyRepository.updateProduct(await workspaceScope(ctx.user.id, input.organizationId), input.productId, input.patch)),
       archive: protectedProcedure.input(organizationInput.extend({ productId: z.number().int().positive() })).mutation(async ({ ctx, input }) => nexareplyRepository.archiveProduct(await workspaceScope(ctx.user.id, input.organizationId), input.productId)),
+      assets: router({
+        list: protectedProcedure.input(organizationInput.extend({ productId: z.number().int().positive().optional() })).query(async ({ ctx, input }) => Promise.all((await nexareplyRepository.listProductAssets(await workspaceScope(ctx.user.id, input.organizationId), input.productId)).map(productAssetDto))),
+        upload: protectedProcedure.input(organizationInput.extend(productAssetUploadInput.shape)).mutation(async ({ ctx, input }) => productAssetDto(await productAssetService.upload(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input))),
+        update: protectedProcedure.input(organizationInput.extend({ assetId: z.number().int().positive(), altText: z.string().trim().max(280).nullable().optional(), sortOrder: z.number().int().min(0).max(5).optional(), isPrimary: z.boolean().optional() })).mutation(async ({ ctx, input }) => productAssetDto(await nexareplyRepository.updateProductAsset(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.assetId, input))),
+        archive: protectedProcedure.input(organizationInput.extend({ assetId: z.number().int().positive() })).mutation(async ({ ctx, input }) => nexareplyRepository.archiveProductAsset(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.assetId)),
+      }),
     }),
     knowledge: router({
       list: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => (await nexareplyRepository.listKnowledgeFacts(await workspaceScope(ctx.user.id, input.organizationId))).map(knowledgeDto)),
       create: protectedProcedure.input(organizationInput.extend({ title: z.string().min(1).max(180), body: z.string().min(1), category: z.string().max(80).optional() })).mutation(async ({ ctx, input }) => nexareplyRepository.createKnowledgeFact(await workspaceScope(ctx.user.id, input.organizationId), input.title, input.body, input.category)),
       update: protectedProcedure.input(organizationInput.extend({ id: z.number().int().positive(), title: z.string().min(1).max(180), body: z.string().min(1), category: z.string().max(80).optional() })).mutation(async ({ ctx, input }) => nexareplyRepository.updateKnowledgeFact(await workspaceScope(ctx.user.id, input.organizationId), input.id, input)),
       archive: protectedProcedure.input(organizationInput.extend({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => nexareplyRepository.deleteKnowledgeFact(await workspaceScope(ctx.user.id, input.organizationId), input.id)),
+      drafts: router({
+        list: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => (await nexareplyRepository.listKnowledgeDrafts(await workspaceScope(ctx.user.id, input.organizationId, "owner"))).map(knowledgeDraftDto)),
+        generate: protectedProcedure.input(organizationInput.extend({ title: z.string().trim().min(3).max(180), originalText: z.string().trim().min(20).max(8000) })).mutation(async ({ ctx, input }) => {
+          try { return await knowledgeDraftService.generate(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input); }
+          catch { throw new TRPCError({ code: "BAD_REQUEST", message: "სტრუქტურირებული draft ვერ შეიქმნა. გადაამოწმეთ ტექსტი და სცადეთ ხელახლა." }); }
+        }),
+        approve: protectedProcedure.input(organizationInput.extend({ sourceId: z.number().int().positive(), draftIds: z.array(z.number().int().positive()).min(1).max(12) })).mutation(async ({ ctx, input }) => (await nexareplyRepository.approveKnowledgeDrafts(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.sourceId, input.draftIds)).map(knowledgeDraftDto)),
+        reject: protectedProcedure.input(organizationInput.extend({ draftId: z.number().int().positive() })).mutation(async ({ ctx, input }) => nexareplyRepository.rejectKnowledgeDraft(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.draftId)),
+        update: protectedProcedure.input(organizationInput.extend({ draftId: z.number().int().positive(), title: z.string().trim().min(3).max(180), body: z.string().trim().min(8).max(1200), category: z.enum(["delivery", "payment", "location", "authenticity", "returns", "policy", "general"]) })).mutation(async ({ ctx, input }) => nexareplyRepository.updateKnowledgeDraft(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.draftId, input)),
+      }),
     }),
     conversations: router({
       list: protectedProcedure.input(organizationInput.extend({ query: z.string().max(160).optional(), status: z.enum(["open", "pending", "closed"]).optional() })).query(async ({ ctx, input }) => (await nexareplyRepository.listConversations(await workspaceScope(ctx.user.id, input.organizationId), input.query, input.status)).map(conversationDto)),
@@ -176,6 +204,7 @@ export const nexareplyRouter = router({
       preview: protectedProcedure.input(organizationInput.extend(uploadInput.shape)).mutation(async ({ ctx, input }) => previewCatalogImport(await workspaceScope(ctx.user.id, input.organizationId), input)),
       commit: protectedProcedure.input(organizationInput.extend(uploadInput.shape)).mutation(async ({ ctx, input }) => commitCatalogImport(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input)),
       exportCsv: protectedProcedure.input(organizationInput.extend({ kind: z.enum(["leads", "orders", "products"]) })).query(async ({ ctx, input }) => exportSalesCsv(await workspaceScope(ctx.user.id, input.organizationId), input.kind)),
+      history: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => (await nexareplyRepository.listProductImports(await workspaceScope(ctx.user.id, input.organizationId, "owner"))).map((record) => ({ id: record.id, fileName: record.fileName, format: record.format, status: record.status, validRows: record.validRows, invalidRows: record.invalidRows, createdAt: record.createdAt }))),
     }),
     owner: router({
       integrationStates: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listIntegrationStates(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
