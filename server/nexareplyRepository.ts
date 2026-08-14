@@ -31,7 +31,7 @@ export type WorkspaceRole = "owner" | "operator";
 export type WorkspaceScope = { organizationId: number; role: WorkspaceRole; isDemo: boolean; actorUserId?: number };
 export type InvitationStatus = "pending" | "accepted" | "expired" | "cancelled";
 
-const DEMO_SLUG = "techzone-demo";
+const DEMO_SLUG = "amadeo-perfume-demo";
 
 async function requireDb() {
   const db = await getDb();
@@ -222,21 +222,23 @@ export const nexareplyRepository = {
     return { conversationCount, aiReplies, humanReplies, qualifiedLeads, handoffs, draftOrderCount, responseRate: conversationCount ? Math.round(((aiReplies + humanReplies) / conversationCount) * 100) : 0, dailyVolume: Array.from(days.values()) };
   },
 
-  async createProduct(scope: WorkspaceScope, input: { brand: string; model: string; sku: string; storage: string; color: string; priceGel: string; stock: number; installment: string; warranty: string }) {
+  async createProduct(scope: WorkspaceScope, input: { brand: string; fragranceName?: string; model?: string; sku: string; volume?: string; storage?: string; availability?: string; color?: string; description?: string; priceGel: string; stock: number; installment?: string; warranty?: string }) {
     const db = await requireDb();
-    await db.insert(products).values({ organizationId: scope.organizationId, brand: input.brand, model: input.model, sku: input.sku });
+    const fragranceName = input.fragranceName ?? input.model;
+    if (!fragranceName) throw new Error("სურნელის დასახელება სავალდებულოა.");
+    await db.insert(products).values({ organizationId: scope.organizationId, brand: input.brand, model: fragranceName, sku: input.sku, category: "სუნამო", description: input.description?.trim() || "აღწერა ჯერ არ არის დამატებული." });
     const product = (await db.select().from(products).where(and(eq(products.organizationId, scope.organizationId), eq(products.sku, input.sku))).limit(1))[0];
     if (!product) throw new Error("Product creation failed");
     await db.insert(productVariants).values({
       organizationId: scope.organizationId,
       productId: product.id,
       sku: `${input.sku}-default`,
-      storage: input.storage,
-      color: input.color,
+      storage: input.volume?.trim() || input.storage?.trim() || "მოცულობა არ არის მითითებული",
+      color: input.availability?.trim() || input.color?.trim() || "ხელმისაწვდომობის დაზუსტება საჭიროა",
       priceGel: input.priceGel,
       stock: input.stock,
-      installment: input.installment,
-      warranty: input.warranty,
+      installment: input.installment?.trim() || "პირობები მენეჯერთან დაზუსტდება",
+      warranty: input.warranty?.trim() || "ორიგინალობა დასტურდება მაღაზიის პოლიტიკით",
     });
     await this.addAudit(scope, "product.created", "product", String(product.id), { sku: input.sku });
     return product;
@@ -257,15 +259,20 @@ export const nexareplyRepository = {
     await this.addAudit(scope, "product_import.completed", "product_import", String(importId), { validRows, invalidRows: errorRows });
   },
 
-  async updateProduct(scope: WorkspaceScope, productId: number, input: Partial<{ brand: string; model: string; storage: string; color: string; priceGel: string; stock: number; installment: string; warranty: string }>) {
+  async updateProduct(scope: WorkspaceScope, productId: number, input: Partial<{ brand: string; fragranceName: string; model: string; volume: string; storage: string; availability: string; color: string; description: string; priceGel: string; stock: number; installment: string; warranty: string }>) {
     const db = await requireDb();
     const current = (await db.select().from(products).where(and(eq(products.id, productId), eq(products.organizationId, scope.organizationId))).limit(1))[0];
     if (!current) throw new Error("Product not found");
     const productPatch: Record<string, unknown> = {};
     if (input.brand) productPatch.brand = input.brand;
-    if (input.model) productPatch.model = input.model;
+    if (input.fragranceName ?? input.model) productPatch.model = input.fragranceName ?? input.model;
+    if (input.description !== undefined) productPatch.description = input.description;
     if (Object.keys(productPatch).length) await db.update(products).set(productPatch).where(and(eq(products.id, productId), eq(products.organizationId, scope.organizationId)));
     const variantPatch: Record<string, unknown> = {};
+    if (input.volume !== undefined) variantPatch.storage = input.volume;
+    else if (input.storage !== undefined) variantPatch.storage = input.storage;
+    if (input.availability !== undefined) variantPatch.color = input.availability;
+    else if (input.color !== undefined) variantPatch.color = input.color;
     (["storage", "color", "priceGel", "stock", "installment", "warranty"] as const).forEach((key) => {
       if (input[key] !== undefined) variantPatch[key] = input[key];
     });
@@ -319,9 +326,10 @@ export const nexareplyRepository = {
     return db.select().from(messages).where(and(eq(messages.organizationId, scope.organizationId), eq(messages.conversationId, conversationId))).orderBy(asc(messages.createdAt));
   },
 
-  async addMessage(scope: WorkspaceScope, input: { conversationId: number; sender: "customer" | "ai" | "operator" | "system"; body: string; source: "demo" | "manual" | "ai" | "meta" | "system"; inboundEventId?: string; isDraft?: boolean; approvedAt?: Date | null }) {
+  async addMessage(scope: WorkspaceScope, input: { conversationId: number; sender: "customer" | "ai" | "operator" | "system"; body: string; source: "demo" | "manual" | "ai" | "meta" | "system"; inboundEventId?: string; isDraft?: boolean; approvedAt?: Date | null; deliveryStatus?: "received" | "draft" | "queued" | "sent" | "failed" }) {
     const db = await requireDb();
-    await db.insert(messages).values({ organizationId: scope.organizationId, ...input });
+    const deliveryStatus = input.deliveryStatus ?? (input.isDraft ? "draft" : input.sender === "customer" ? "received" : "sent");
+    await db.insert(messages).values({ organizationId: scope.organizationId, ...input, deliveryStatus });
     await db.update(conversations).set({ preview: input.body, lastMessageAt: new Date(), ...(input.sender === "customer" ? { lastInboundAt: new Date() } : {}) }).where(and(eq(conversations.id, input.conversationId), eq(conversations.organizationId, scope.organizationId)));
   },
 
@@ -350,6 +358,25 @@ export const nexareplyRepository = {
     const ticket = (await db.select().from(tickets).where(and(eq(tickets.organizationId, scope.organizationId), eq(tickets.idempotencyKey, idempotencyKey))).limit(1))[0];
     await db.update(conversations).set({ status: "pending", aiState: "needs_human" }).where(and(eq(conversations.id, conversationId), eq(conversations.organizationId, scope.organizationId)));
     return ticket;
+  },
+
+  async listTickets(scope: WorkspaceScope, status?: "open" | "resolved" | "closed") {
+    const db = await requireDb();
+    const conditions = [eq(tickets.organizationId, scope.organizationId)];
+    if (status) conditions.push(eq(tickets.status, status));
+    return db.select({ ticket: tickets, conversation: conversations })
+      .from(tickets)
+      .innerJoin(conversations, and(eq(tickets.conversationId, conversations.id), eq(conversations.organizationId, scope.organizationId)))
+      .where(and(...conditions))
+      .orderBy(desc(tickets.updatedAt));
+  },
+
+  async resolveTicket(scope: WorkspaceScope, ticketId: number) {
+    const db = await requireDb();
+    const ticket = (await db.select().from(tickets).where(and(eq(tickets.id, ticketId), eq(tickets.organizationId, scope.organizationId))).limit(1))[0];
+    if (!ticket) throw new Error("Ticket ვერ მოიძებნა.");
+    await db.update(tickets).set({ status: "resolved" }).where(and(eq(tickets.id, ticketId), eq(tickets.organizationId, scope.organizationId)));
+    await this.addAudit(scope, "ticket.resolved", "ticket", String(ticketId), {});
   },
 
   async listLeads(scope: WorkspaceScope) {
@@ -419,6 +446,15 @@ export const nexareplyRepository = {
     return (await db.select().from(conversations).where(and(eq(conversations.id, conversationId), eq(conversations.organizationId, scope.organizationId))).limit(1))[0];
   },
 
+  async getCustomerParticipant(scope: WorkspaceScope, conversationId: number) {
+    const db = await requireDb();
+    return (await db.select().from(conversationParticipants).where(and(
+      eq(conversationParticipants.organizationId, scope.organizationId),
+      eq(conversationParticipants.conversationId, conversationId),
+      eq(conversationParticipants.participantType, "customer"),
+    )).limit(1))[0];
+  },
+
   async listCatalogFacts(scope: WorkspaceScope) {
     const db = await requireDb();
     return db.select({ product: products, variant: productVariants }).from(products).innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.organizationId, scope.organizationId))).where(and(eq(products.organizationId, scope.organizationId), eq(products.active, true), eq(productVariants.active, true)));
@@ -427,6 +463,18 @@ export const nexareplyRepository = {
   async getOrganization(scope: WorkspaceScope) {
     const db = await requireDb();
     return (await db.select().from(organizations).where(eq(organizations.id, scope.organizationId)).limit(1))[0];
+  },
+
+  async updateAssistantSettings(scope: WorkspaceScope, input: { aiPersona?: string; aiTone?: string; replyLength?: "short" | "normal" | "detailed"; fallbackMessage?: string }) {
+    const db = await requireDb();
+    const patch: Record<string, unknown> = {};
+    if (input.aiPersona !== undefined) patch.aiPersona = input.aiPersona;
+    if (input.aiTone !== undefined) patch.aiTone = input.aiTone;
+    if (input.replyLength !== undefined) patch.replyLength = input.replyLength;
+    if (input.fallbackMessage !== undefined) patch.fallbackMessage = input.fallbackMessage;
+    if (Object.keys(patch).length) await db.update(organizations).set(patch).where(eq(organizations.id, scope.organizationId));
+    await this.addAudit(scope, "assistant.settings_updated", "organization", String(scope.organizationId), { changed: Object.keys(patch) });
+    return this.getOrganization(scope);
   },
 
   async addAudit(scope: WorkspaceScope, action: string, targetType: string, targetId: string, payload: unknown) {

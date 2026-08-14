@@ -41,6 +41,7 @@ export const organizations = mysqlTable("organizations", {
   mode: mysqlEnum("mode", ["demo", "live"]).notNull().default("live"),
   planId: int("planId"),
   aiTone: varchar("aiTone", { length: 100 }).notNull().default("თბილი და კონკრეტული"),
+  aiPersona: varchar("aiPersona", { length: 180 }).notNull().default("Amadeo-ის სუნამოების კონსულტანტი"),
   replyLength: mysqlEnum("replyLength", ["short", "normal", "detailed"]).notNull().default("normal"),
   fallbackMessage: text("fallbackMessage"),
   debounceSeconds: int("debounceSeconds").notNull().default(10),
@@ -104,6 +105,7 @@ export const products = mysqlTable("products", {
   model: varchar("model", { length: 160 }).notNull(),
   category: varchar("category", { length: 100 }).notNull().default("ელექტრონიკა"),
   sku: varchar("sku", { length: 120 }).notNull(),
+  description: text("description").notNull(),
   active: boolean("active").notNull().default(true),
   archivedAt: timestamp("archivedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -217,6 +219,7 @@ export const messages = mysqlTable("messages", {
   source: mysqlEnum("source", ["demo", "manual", "ai", "meta", "system"]).notNull().default("demo"),
   inboundEventId: varchar("inboundEventId", { length: 160 }),
   isDraft: boolean("isDraft").notNull().default(false),
+  deliveryStatus: mysqlEnum("deliveryStatus", ["received", "draft", "queued", "sent", "failed"]).notNull().default("received"),
   approvedAt: timestamp("approvedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => [

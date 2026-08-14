@@ -1,0 +1,1 @@
+ALTER TABLE `messages` ADD `deliveryStatus` enum('received','draft','queued','sent','failed') DEFAULT 'received' NOT NULL;

@@ -23,9 +23,9 @@ export type OwnerEvent = {
 };
 
 const catalogFacts = [
-  { match: /iphone 16 pro max/i, response: "iPhone 16 Pro Max 256GB შავი ფერი გვაქვს მარაგში. ფასი არის 3,699 GEL და ხელმისაწვდომია 0%-იანი განვადება 12 თვემდე." },
-  { match: /pixel 9/i, response: "Google Pixel 9 128GB გვაქვს 2,099 GEL-ად. ხელმისაწვდომია 0%-იანი განვადება 10 თვემდე." },
-  { match: /airpods pro 2/i, response: "AirPods Pro 2 გვაქვს მარაგში 699 GEL-ად, 12-თვიანი 0%-იანი განვადების შესაძლებლობით." },
+  { match: /amadeo rose|rose amber/i, response: "Amadeo Rose Amber 50 მლ-ის ხელმისაწვდომობა და ფასი მხოლოდ მიმდინარე კატალოგის ჩანაწერიდან უნდა დადასტურდეს." },
+  { match: /vanilla noir/i, response: "Vanilla Noir-ის მოცულობა, ფასი და მარაგი მხოლოდ Amadeo-ის მიმდინარე კატალოგის მონაცემებით უნდა დაზუსტდეს." },
+  { match: /citrus atelier/i, response: "Citrus Atelier-ის შესახებ შეგვიძლია დავადასტუროთ მხოლოდ catalog-ში დამატებული მოცულობა, ფასი და ხელმისაწვდომობა." },
 ];
 
 function lastCustomerText(history: DemoReplyInput["history"]) {
@@ -42,7 +42,7 @@ export function generateDemoReply(input: DemoReplyInput): DemoReplyResult {
   const fact = catalogFacts.find((item) => item.match.test(sourceText));
   if (!fact) {
     return {
-      text: "ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით.",
+      text: "ზუსტ დეტალს Amadeo-ის გუნდთან გადავამოწმებ და მალე დაგიბრუნდებით.",
       decision: "escalate",
       reason: "საუბრის კონტექსტში ვერ მოიძებნა დასაყრდენი კატალოგის ფაქტი.",
       source: "fallback",

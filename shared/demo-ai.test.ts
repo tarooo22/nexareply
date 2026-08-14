@@ -3,20 +3,20 @@ import { createOwnerEvent, generateDemoReply } from "./demo-ai";
 
 describe("generateDemoReply", () => {
   it("uses verified catalog facts for a known product", () => {
-    const result = generateDemoReply({ history: [{ sender: "customer", body: "iPhone 16 Pro Max რა ღირს?" }], preferredProduct: "iPhone 16 Pro Max", tone: "თბილი და კონკრეტული" });
+    const result = generateDemoReply({ history: [{ sender: "customer", body: "Rose Amber რა ღირს?" }], preferredProduct: "Amadeo Rose Amber", tone: "თბილი და კონკრეტული" });
     expect(result.decision).toBe("suggest");
-    expect(result.text).toContain("3,699 GEL");
+    expect(result.text).toContain("Rose Amber");
     expect(result.source).toBe("catalog");
   });
 
   it("escalates instead of inventing an unknown answer", () => {
-    const result = generateDemoReply({ history: [{ sender: "customer", body: "რა ღირს trade-in შეფასება?" }], preferredProduct: "trade-in", tone: "ფორმალური" });
+    const result = generateDemoReply({ history: [{ sender: "customer", body: "უცნობი სუნამო რა ღირს?" }], preferredProduct: "უცნობი სუნამო", tone: "ფორმალური" });
     expect(result.decision).toBe("escalate");
-    expect(result.text).toBe("ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით.");
+    expect(result.text).toBe("ზუსტ დეტალს Amadeo-ის გუნდთან გადავამოწმებ და მალე დაგიბრუნდებით.");
   });
 
   it("blocks a reply while a human owns the conversation", () => {
-    const result = generateDemoReply({ history: [{ sender: "customer", body: "დამეხმარეთ" }], preferredProduct: "iPhone 16 Pro Max", tone: "მოკლე და სწრაფი", humanActive: true });
+    const result = generateDemoReply({ history: [{ sender: "customer", body: "დამეხმარეთ" }], preferredProduct: "Amadeo Rose Amber", tone: "მოკლე და სწრაფი", humanActive: true });
     expect(result.decision).toBe("blocked");
     expect(result.text).toBe("");
   });

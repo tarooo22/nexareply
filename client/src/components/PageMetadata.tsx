@@ -7,7 +7,7 @@ const metadataByRoute: Array<{ matches: (path: string) => boolean; title: string
   { matches: (path) => path === "/privacy", title: "კონფიდენციალურობა — NexaReply", description: "გაეცანით NexaReply-ის მონაცემთა უსაფრთხოებისა და Demo Mode-ის კონფიდენციალურობის პრინციპებს." },
   { matches: (path) => path === "/terms", title: "გამოყენების პირობები — NexaReply", description: "NexaReply-ის AI პასუხების, Demo Mode-ისა და ოპერაციული კონტროლის გამოყენების პირობები." },
   { matches: (path) => path === "/contact", title: "კონტაქტი — NexaReply", description: "დაგეგმეთ თქვენი Messenger გაყიდვების workflow NexaReply-ით." },
-  { matches: (path) => path.startsWith("/demo"), title: "TechZone Demo — NexaReply", description: "შესვლის გარეშე გამოსცადეთ NexaReply-ის AI sales workspace უსაფრთხო Demo Mode-ში." },
+  { matches: (path) => path.startsWith("/demo"), title: "Amadeo Perfume Demo — NexaReply", description: "შესვლის გარეშე გამოსცადეთ NexaReply-ის AI sales workspace სუნამოების უსაფრთხო Demo Mode-ში." },
 ];
 
 function updateMeta(selector: string, content: string) {

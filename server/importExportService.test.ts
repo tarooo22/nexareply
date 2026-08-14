@@ -11,14 +11,14 @@ function workbookBase64(rows: Record<string, unknown>[]) {
 
 describe("parseCatalogFile", () => {
   it("returns normalized, valid catalog rows from XLSX data", () => {
-    const base64 = workbookBase64([{ "ბრენდი": "Apple", "მოდელი": "iPhone Test", SKU: "APPLE-TEST", "ფასი GEL": "1999", მარაგი: 4, ფერი: "შავი", მეხსიერება: "128GB" }]);
+    const base64 = workbookBase64([{ "ბრენდი": "Maison Test", "სურნელის დასახელება": "Rose Amber", SKU: "AMAD-ROSE", "ფასი GEL": "199", მარაგი: 4, ხელმისაწვდომობა: "მარაგშია", მოცულობა: "50 მლ", აღწერა: "ყვავილოვანი სურნელი" }]);
     const parsed = parseCatalogFile(base64, "catalog.xlsx");
     expect(parsed.errors).toHaveLength(0);
-    expect(parsed.validRows).toEqual([expect.objectContaining({ brand: "Apple", model: "iPhone Test", sku: "APPLE-TEST", priceGel: "1999.00", stock: 4 })]);
+    expect(parsed.validRows).toEqual([expect.objectContaining({ brand: "Maison Test", fragranceName: "Rose Amber", sku: "AMAD-ROSE", priceGel: "199.00", stock: 4, volume: "50 მლ" })]);
   });
 
   it("reports missing required fields instead of persisting malformed rows", () => {
-    const base64 = workbookBase64([{ "ბრენდი": "Apple", "მოდელი": "Missing SKU", "ფასი GEL": "1999", მარაგი: 4 }]);
+    const base64 = workbookBase64([{ "ბრენდი": "Maison Test", "სურნელის დასახელება": "Missing SKU", "ფასი GEL": "199", მარაგი: 4 }]);
     const parsed = parseCatalogFile(base64, "catalog.xlsx");
     expect(parsed.validRows).toHaveLength(0);
     expect(parsed.errors[0]).toMatchObject({ row: 2 });

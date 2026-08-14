@@ -1,5 +1,5 @@
 import React from "react";
-import { BarChart3, Bell, Inbox, LayoutDashboard, PackageSearch, Settings2, UsersRound } from "lucide-react";
+import { BarChart3, Bell, BookOpenText, Bot, Inbox, LayoutDashboard, PackageSearch, Settings2, TicketCheck, UsersRound } from "lucide-react";
 
 export type WorkspaceRole = "owner" | "operator";
 
@@ -7,6 +7,9 @@ export const workspaceNavigation = [
   { id: "overview", label: "მიმოხილვა", icon: LayoutDashboard },
   { id: "inbox", label: "საუბრები", icon: Inbox },
   { id: "catalog", label: "პროდუქტები", icon: PackageSearch },
+  { id: "knowledge", label: "ცოდნის ბაზა", icon: BookOpenText },
+  { id: "assistant", label: "AI კონსულტანტი", icon: Bot },
+  { id: "tickets", label: "Tickets", icon: TicketCheck },
   { id: "analytics", label: "ანალიტიკა", icon: BarChart3 },
   { id: "notifications", label: "შეტყობინებები", icon: Bell },
   { id: "members", label: "წევრები", icon: UsersRound, ownerOnly: true },

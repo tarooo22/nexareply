@@ -12,6 +12,10 @@ vi.mock("@/lib/trpc", () => ({
       workspace: {
         bootstrap: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isSuccess: false }) },
         organizations: { useQuery: () => ({ isLoading: false, data: [{ organization: { id: 17, name: "Persisted Org" }, membership: { role: scenario.role } }] }) },
+        overview: { useQuery: () => ({ isLoading: false, data: { conversationCount: 0, ticketCount: 0, qualifiedLeadCount: 0 } }) },
+        analytics: { useQuery: () => ({ isLoading: false, data: { conversationCount: 0, aiReplies: 0, humanReplies: 0, qualifiedLeads: 0, handoffs: 0, draftOrderCount: 0, responseRate: 0, dailyVolume: [] } }) },
+        notifications: { list: { useQuery: () => ({ isLoading: false, data: [] }) }, markRead: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) } },
+        owner: { meta: { status: { useQuery: () => ({ isLoading: false, data: { status: "connected", configured: true, page: { id: "page", name: "Amadeo" } } }) } } },
       },
     },
   },

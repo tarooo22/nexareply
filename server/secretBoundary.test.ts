@@ -9,7 +9,8 @@ describe("secret boundary", () => {
     const clientRoot = join(process.cwd(), "client", "src");
     const publicShell = readFileSync(join(clientRoot, "pages", "DemoWorkspace.tsx"), "utf8");
     const protectedShell = readFileSync(join(clientRoot, "pages", "AuthenticatedWorkspace.tsx"), "utf8");
-    const exposed = `${publicShell}\n${protectedShell}`;
+    const workspaceScreens = readFileSync(join(clientRoot, "pages", "workspace", "AmadeoWorkspaceScreens.tsx"), "utf8");
+    const exposed = `${publicShell}\n${protectedShell}\n${workspaceScreens}`;
     expect(exposed).not.toMatch(/OPENAI_API_KEY|META_APP_SECRET|TELEGRAM_BOT_TOKEN|DATABASE_URL/);
   });
 
@@ -28,6 +29,7 @@ describe("secret boundary", () => {
       caller.nexareply.demo.data.analytics(),
       caller.nexareply.demo.imports.exportCsv({ kind: "leads" }),
       caller.nexareply.demo.imports.exportCsv({ kind: "orders" }),
+      caller.nexareply.demo.imports.exportCsv({ kind: "products" }),
     ]);
     expect(JSON.stringify([bootstrap, publicSurface])).not.toMatch(/integrationSettings|clientSecret|encryptedConfig|accessToken|apiKey|secret/i);
     expect("owner" in caller.nexareply.demo).toBe(false);

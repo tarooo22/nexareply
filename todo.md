@@ -120,3 +120,21 @@
 - [x] Add integration coverage showing invitation acceptance and Meta owner Page status/Page-selection flows work while authenticated through the custom email/password session.
 - [x] Add custom-session-backed tests for workspace membership listing and role mutation, proving owner access and operator denial after resolving `app_session_id`.
 - [x] Add custom-session-backed coverage for owner invitation management procedures to preserve list/create/cancel/resend access under password sessions.
+- [x] Audit protected workspace placeholder routes, existing tenant-scoped contracts, reusable components, and Amadeo persistent data gaps.
+- [x] Define Amadeo perfume product, knowledge, conversation, ticket, notification, alert, and analytics data contracts without exposing Meta credentials.
+- [x] Replace phone-store workspace vocabulary and protected sample records with Amadeo perfume-store catalog, policies, and operational examples.
+- [x] Build a persistent Inbox with conversation list, live detail, Meta inbound history, AI draft, reply send, human takeover, and message status states.
+- [x] Build persistent perfume catalog management with brand, fragrance, volume, price, availability, description, and CSV import/export flows.
+- [x] Build persistent Amadeo knowledge-base management for delivery, payment, location, authenticity, returns, and store policies.
+- [x] Configure a persistent perfume sales-assistant workflow that answers only from Amadeo store data and opens a handoff ticket for unknown requests.
+- [x] Build persistent ticket and owner-notification screens with empty, loading, and real-data states.
+- [x] Build persistent analytics and alerts screens with meaningful Amadeo operational metrics and actionable states.
+- [x] Replace every protected navigation placeholder with a Georgian-first dark-purple functional screen and complete empty/loading/error states.
+- [x] Add regression tests for Amadeo persistence, tenant isolation, catalog import/export, AI safety/handoff, Meta boundaries, and protected UI states.
+- [ ] Run responsive browser QA, document Amadeo workspace operations, and publish the completed persistent workspace.
+- [x] Define explicit Amadeo-specific response/input contracts for knowledge, conversations, notifications/alerts, and analytics with perfume-store semantics.
+- [x] Add regression tests for Amadeo product, assistant, ticket, knowledge, inbox, alerts, and analytics contracts plus Meta secret-boundary assertions.
+- [x] Document finalized Amadeo workspace data contracts and the mapping from persistent records to alerts and analytics metrics.
+- [x] Add secret-safe Amadeo response DTOs for knowledge, inbox conversations/messages, alerts, tickets and analytics instead of returning unrestricted raw rows.
+- [x] Add focused Vitest coverage for assistant settings read/update, knowledge CRUD, ticket resolution, inbox reply success/failure delivery status, and alerts/analytics response contracts.
+- [x] Add Meta credential non-exposure assertions for all new Amadeo workspace response DTOs.

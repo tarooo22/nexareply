@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { seedTechZoneDemo } from "./demoSeed";
+import { seedAmadeoDemo } from "./demoSeed";
 import { createDatabaseBackedDemoDraft, recordInboundDemoMessage } from "./demoAiService";
 import { processDueConversationJobs } from "./jobWorker";
 import { commitCatalogImport, exportSalesCsv, previewCatalogImport } from "./importExportService";
@@ -13,20 +13,35 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 const organizationInput = z.object({ organizationId: z.number().int().positive() });
 const productInput = z.object({
   brand: z.string().min(1).max(100),
-  model: z.string().min(1).max(160),
+  fragranceName: z.string().min(1).max(160).optional(),
+  model: z.string().min(1).max(160).optional(),
   sku: z.string().min(1).max(120),
-  storage: z.string().min(1).max(80),
-  color: z.string().min(1).max(100),
+  volume: z.string().min(1).max(80).optional(),
+  storage: z.string().min(1).max(80).optional(),
+  availability: z.string().min(1).max(100).optional(),
+  color: z.string().min(1).max(100).optional(),
+  description: z.string().min(1).max(2000).optional(),
   priceGel: z.string().regex(/^\d+(\.\d{1,2})?$/),
   stock: z.number().int().min(0),
-  installment: z.string().min(1).max(120),
-  warranty: z.string().min(1).max(120),
-});
-const mappingInput = z.object({ brand: z.string(), model: z.string(), sku: z.string(), priceGel: z.string(), stock: z.string(), color: z.string(), storage: z.string().optional(), installment: z.string().optional(), warranty: z.string().optional() });
+  installment: z.string().min(1).max(120).optional(),
+  warranty: z.string().min(1).max(120).optional(),
+}).refine((product) => Boolean(product.fragranceName || product.model), { message: "სურნელის დასახელება სავალდებულოა." });
+const mappingInput = z.object({
+  brand: z.string(), fragranceName: z.string().optional(), model: z.string().optional(), sku: z.string(), priceGel: z.string(), stock: z.string(),
+  availability: z.string().optional(), color: z.string().optional(), volume: z.string().optional(), storage: z.string().optional(), description: z.string().optional(), installment: z.string().optional(), warranty: z.string().optional(),
+}).refine((mapping) => Boolean(mapping.fragranceName || mapping.model), { message: "სურნელის სვეტი სავალდებულოა." });
 const uploadInput = z.object({ base64: z.string().min(1).max(10_000_000), fileName: z.string().min(5).max(255), mapping: mappingInput.optional() });
 
+function knowledgeDto(row: any) { return { id: row.id, title: row.title, body: row.body, category: row.category, active: row.active, createdAt: row.createdAt, updatedAt: row.updatedAt }; }
+function conversationDto(row: any) { return { id: row.id, leadId: row.leadId, customerName: row.customerName, customerPhone: row.customerPhone, status: row.status, humanActive: row.humanActive, aiState: row.aiState, priority: row.priority, preview: row.preview, preferredProduct: row.preferredProduct, lastInboundAt: row.lastInboundAt, lastMessageAt: row.lastMessageAt, createdAt: row.createdAt, updatedAt: row.updatedAt }; }
+function messageDto(row: any) { return { id: row.id, conversationId: row.conversationId, sender: row.sender, body: row.body, source: row.source, isDraft: row.isDraft, deliveryStatus: row.deliveryStatus, approvedAt: row.approvedAt, createdAt: row.createdAt }; }
+function alertDto(row: any) { return { id: row.id, type: row.type, title: row.title, body: row.body, relatedConversationId: row.relatedConversationId, readAt: row.readAt, createdAt: row.createdAt }; }
+function analyticsDto(row: any) { return { conversationCount: row.conversationCount, aiReplies: row.aiReplies, humanReplies: row.humanReplies, qualifiedLeads: row.qualifiedLeads, handoffs: row.handoffs, draftOrderCount: row.draftOrderCount, responseRate: row.responseRate, dailyVolume: row.dailyVolume.map((day: any) => ({ day: day.day, ai: day.ai, human: day.human })) }; }
+function ticketDto(row: any) { return { ticket: { id: row.ticket.id, conversationId: row.ticket.conversationId, reason: row.ticket.reason, status: row.ticket.status, priority: row.ticket.priority, createdAt: row.ticket.createdAt, updatedAt: row.ticket.updatedAt }, conversation: conversationDto(row.conversation) }; }
+function assistantDto(row: any) { return { aiPersona: row?.aiPersona ?? "Amadeo-ის სუნამოების კონსულტანტი", aiTone: row?.aiTone ?? "თბილი და კონკრეტული", replyLength: row?.replyLength ?? "normal", fallbackMessage: row?.fallbackMessage ?? "ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით." }; }
+
 async function demoScope() {
-  await seedTechZoneDemo();
+  await seedAmadeoDemo();
   return nexareplyRepository.getPublicDemoScope();
 }
 
@@ -47,14 +62,14 @@ function makeDataRouter(getScope: (input: { organizationId?: number }) => Promis
       archive: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), productId: z.number().int().positive() })).mutation(async ({ input }) => nexareplyRepository.archiveProduct(await getScope(input), input.productId)),
     }),
     knowledge: router({
-      list: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional() }).optional()).query(async ({ input }) => nexareplyRepository.listKnowledgeFacts(await getScope(input ?? {}))),
+      list: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional() }).optional()).query(async ({ input }) => (await nexareplyRepository.listKnowledgeFacts(await getScope(input ?? {}))).map(knowledgeDto)),
       create: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), title: z.string().min(1).max(180), body: z.string().min(1), category: z.string().max(80).optional() })).mutation(async ({ input }) => nexareplyRepository.createKnowledgeFact(await getScope(input), input.title, input.body, input.category)),
       update: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), id: z.number().int().positive(), title: z.string().min(1).max(180), body: z.string().min(1), category: z.string().max(80).optional() })).mutation(async ({ input }) => nexareplyRepository.updateKnowledgeFact(await getScope(input), input.id, input)),
       archive: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), id: z.number().int().positive() })).mutation(async ({ input }) => nexareplyRepository.deleteKnowledgeFact(await getScope(input), input.id)),
     }),
     conversations: router({
-      list: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), query: z.string().max(160).optional(), status: z.enum(["open", "pending", "closed"]).optional() }).optional()).query(async ({ input }) => nexareplyRepository.listConversations(await getScope(input ?? {}), input?.query, input?.status)),
-      messages: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), conversationId: z.number().int().positive() })).query(async ({ input }) => nexareplyRepository.listMessages(await getScope(input), input.conversationId)),
+      list: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), query: z.string().max(160).optional(), status: z.enum(["open", "pending", "closed"]).optional() }).optional()).query(async ({ input }) => (await nexareplyRepository.listConversations(await getScope(input ?? {}), input?.query, input?.status)).map(conversationDto)),
+      messages: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), conversationId: z.number().int().positive() })).query(async ({ input }) => (await nexareplyRepository.listMessages(await getScope(input), input.conversationId)).map(messageDto)),
       inboundDemo: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), conversationId: z.number().int().positive(), body: z.string().min(1).max(2000), inboundEventId: z.string().min(8).max(160) })).mutation(async ({ input }) => recordInboundDemoMessage(await getScope(input), input)),
       createDraft: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), conversationId: z.number().int().positive() })).mutation(async ({ input }) => createDatabaseBackedDemoDraft(await getScope(input), input.conversationId)),
       takeover: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), conversationId: z.number().int().positive(), active: z.boolean() })).mutation(async ({ input }) => nexareplyRepository.setHumanTakeover(await getScope(input), input.conversationId, input.active)),
@@ -66,10 +81,10 @@ function makeDataRouter(getScope: (input: { organizationId?: number }) => Promis
       draftOrders: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional() }).optional()).query(async ({ input }) => nexareplyRepository.listDraftOrders(await getScope(input ?? {}))),
     }),
     notifications: router({
-      list: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional() }).optional()).query(async ({ input }) => nexareplyRepository.listNotifications(await getScope(input ?? {}))),
+      list: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional() }).optional()).query(async ({ input }) => (await nexareplyRepository.listNotifications(await getScope(input ?? {}))).map(alertDto)),
       markRead: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), ids: z.array(z.number().int().positive()).optional() })).mutation(async ({ input }) => nexareplyRepository.markNotificationsRead(await getScope(input), input.ids)),
     }),
-    analytics: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional() }).optional()).query(async ({ input }) => nexareplyRepository.getAnalytics(await getScope(input ?? {}))),
+    analytics: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional() }).optional()).query(async ({ input }) => analyticsDto(await nexareplyRepository.getAnalytics(await getScope(input ?? {})))),
   });
 }
 
@@ -90,7 +105,7 @@ export const nexareplyRouter = router({
     imports: router({
       preview: publicProcedure.input(uploadInput).mutation(async ({ input }) => previewCatalogImport(await demoScope(), input)),
       commit: publicProcedure.input(uploadInput).mutation(async ({ input }) => commitCatalogImport(await demoScope(), input)),
-      exportCsv: publicProcedure.input(z.object({ kind: z.enum(["leads", "orders"]) })).query(async ({ input }) => exportSalesCsv(await demoScope(), input.kind)),
+      exportCsv: publicProcedure.input(z.object({ kind: z.enum(["leads", "orders", "products"]) })).query(async ({ input }) => exportSalesCsv(await demoScope(), input.kind)),
     }),
   }),
   workspace: router({
@@ -104,18 +119,32 @@ export const nexareplyRouter = router({
       archive: protectedProcedure.input(organizationInput.extend({ productId: z.number().int().positive() })).mutation(async ({ ctx, input }) => nexareplyRepository.archiveProduct(await workspaceScope(ctx.user.id, input.organizationId), input.productId)),
     }),
     knowledge: router({
-      list: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listKnowledgeFacts(await workspaceScope(ctx.user.id, input.organizationId))),
+      list: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => (await nexareplyRepository.listKnowledgeFacts(await workspaceScope(ctx.user.id, input.organizationId))).map(knowledgeDto)),
       create: protectedProcedure.input(organizationInput.extend({ title: z.string().min(1).max(180), body: z.string().min(1), category: z.string().max(80).optional() })).mutation(async ({ ctx, input }) => nexareplyRepository.createKnowledgeFact(await workspaceScope(ctx.user.id, input.organizationId), input.title, input.body, input.category)),
       update: protectedProcedure.input(organizationInput.extend({ id: z.number().int().positive(), title: z.string().min(1).max(180), body: z.string().min(1), category: z.string().max(80).optional() })).mutation(async ({ ctx, input }) => nexareplyRepository.updateKnowledgeFact(await workspaceScope(ctx.user.id, input.organizationId), input.id, input)),
       archive: protectedProcedure.input(organizationInput.extend({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => nexareplyRepository.deleteKnowledgeFact(await workspaceScope(ctx.user.id, input.organizationId), input.id)),
     }),
     conversations: router({
-      list: protectedProcedure.input(organizationInput.extend({ query: z.string().max(160).optional(), status: z.enum(["open", "pending", "closed"]).optional() })).query(async ({ ctx, input }) => nexareplyRepository.listConversations(await workspaceScope(ctx.user.id, input.organizationId), input.query, input.status)),
-      messages: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive() })).query(async ({ ctx, input }) => nexareplyRepository.listMessages(await workspaceScope(ctx.user.id, input.organizationId), input.conversationId)),
+      list: protectedProcedure.input(organizationInput.extend({ query: z.string().max(160).optional(), status: z.enum(["open", "pending", "closed"]).optional() })).query(async ({ ctx, input }) => (await nexareplyRepository.listConversations(await workspaceScope(ctx.user.id, input.organizationId), input.query, input.status)).map(conversationDto)),
+      messages: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive() })).query(async ({ ctx, input }) => (await nexareplyRepository.listMessages(await workspaceScope(ctx.user.id, input.organizationId), input.conversationId)).map(messageDto)),
       inboundDemo: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive(), body: z.string().min(1).max(2000), inboundEventId: z.string().min(8).max(160) })).mutation(async ({ ctx, input }) => recordInboundDemoMessage(await workspaceScope(ctx.user.id, input.organizationId), input)),
       createDraft: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive() })).mutation(async ({ ctx, input }) => createDatabaseBackedDemoDraft(await workspaceScope(ctx.user.id, input.organizationId), input.conversationId)),
       takeover: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive(), active: z.boolean() })).mutation(async ({ ctx, input }) => nexareplyRepository.setHumanTakeover(await workspaceScope(ctx.user.id, input.organizationId), input.conversationId, input.active)),
       approveDraft: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive(), body: z.string().min(1).max(2000) })).mutation(async ({ ctx, input }) => nexareplyRepository.addMessage(await workspaceScope(ctx.user.id, input.organizationId), { conversationId: input.conversationId, sender: "operator", body: input.body, source: "manual", approvedAt: new Date() })),
+      sendReply: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive(), body: z.string().min(1).max(2000) })).mutation(async ({ ctx, input }) => {
+        const scope = await workspaceScope(ctx.user.id, input.organizationId);
+        const participant = await nexareplyRepository.getCustomerParticipant(scope, input.conversationId);
+        const psid = participant?.externalId?.startsWith("meta:") ? participant.externalId.split(":").at(-1) : null;
+        if (psid) {
+          const delivery = await metaMessengerService.sendText(scope, { psid, text: input.body });
+          if (!delivery.delivered) {
+            await nexareplyRepository.addMessage(scope, { conversationId: input.conversationId, sender: "operator", body: input.body, source: "manual", approvedAt: new Date(), deliveryStatus: "failed" });
+            throw new TRPCError({ code: "BAD_REQUEST", message: delivery.error });
+          }
+        }
+        await nexareplyRepository.addMessage(scope, { conversationId: input.conversationId, sender: "operator", body: input.body, source: "manual", approvedAt: new Date(), deliveryStatus: "sent" });
+        return { delivered: Boolean(psid), channel: psid ? "meta" as const : "workspace" as const };
+      }),
     }),
     leads: router({
       list: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listLeads(await workspaceScope(ctx.user.id, input.organizationId))),
@@ -123,14 +152,25 @@ export const nexareplyRouter = router({
       draftOrders: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listDraftOrders(await workspaceScope(ctx.user.id, input.organizationId))),
     }),
     notifications: router({
-      list: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listNotifications(await workspaceScope(ctx.user.id, input.organizationId))),
+      list: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => (await nexareplyRepository.listNotifications(await workspaceScope(ctx.user.id, input.organizationId))).map(alertDto)),
       markRead: protectedProcedure.input(organizationInput.extend({ ids: z.array(z.number().int().positive()).optional() })).mutation(async ({ ctx, input }) => nexareplyRepository.markNotificationsRead(await workspaceScope(ctx.user.id, input.organizationId), input.ids)),
     }),
-    analytics: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.getAnalytics(await workspaceScope(ctx.user.id, input.organizationId))),
+    analytics: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => analyticsDto(await nexareplyRepository.getAnalytics(await workspaceScope(ctx.user.id, input.organizationId)))),
+    tickets: router({
+      list: protectedProcedure.input(organizationInput.extend({ status: z.enum(["open", "resolved", "closed"]).optional() })).query(async ({ ctx, input }) => (await nexareplyRepository.listTickets(await workspaceScope(ctx.user.id, input.organizationId), input.status)).map(ticketDto)),
+      resolve: protectedProcedure.input(organizationInput.extend({ ticketId: z.number().int().positive() })).mutation(async ({ ctx, input }) => nexareplyRepository.resolveTicket(await workspaceScope(ctx.user.id, input.organizationId), input.ticketId)),
+    }),
+    assistant: router({
+      settings: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => {
+        const organization = await nexareplyRepository.getOrganization(await workspaceScope(ctx.user.id, input.organizationId));
+        return assistantDto(organization);
+      }),
+      update: protectedProcedure.input(organizationInput.extend({ aiPersona: z.string().min(8).max(180), aiTone: z.string().min(3).max(100), replyLength: z.enum(["short", "normal", "detailed"]), fallbackMessage: z.string().min(5).max(2000) })).mutation(async ({ ctx, input }) => assistantDto(await nexareplyRepository.updateAssistantSettings(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input))),
+    }),
     imports: router({
       preview: protectedProcedure.input(organizationInput.extend(uploadInput.shape)).mutation(async ({ ctx, input }) => previewCatalogImport(await workspaceScope(ctx.user.id, input.organizationId), input)),
       commit: protectedProcedure.input(organizationInput.extend(uploadInput.shape)).mutation(async ({ ctx, input }) => commitCatalogImport(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input)),
-      exportCsv: protectedProcedure.input(organizationInput.extend({ kind: z.enum(["leads", "orders"]) })).query(async ({ ctx, input }) => exportSalesCsv(await workspaceScope(ctx.user.id, input.organizationId), input.kind)),
+      exportCsv: protectedProcedure.input(organizationInput.extend({ kind: z.enum(["leads", "orders", "products"]) })).query(async ({ ctx, input }) => exportSalesCsv(await workspaceScope(ctx.user.id, input.organizationId), input.kind)),
     }),
     owner: router({
       integrationStates: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listIntegrationStates(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),

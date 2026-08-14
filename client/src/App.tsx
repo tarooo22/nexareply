@@ -8,11 +8,11 @@ import { PageMetadata } from "./components/PageMetadata";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import PublicPage from "./pages/PublicPage";
-import AuthenticatedWorkspace from "./pages/AuthenticatedWorkspace";
 import InvitationAccept from "./pages/InvitationAccept";
 import AuthPage from "./pages/AuthPage";
 
 const DemoWorkspace = lazy(() => import("./pages/DemoWorkspace"));
+const AuthenticatedWorkspace = lazy(() => import("./pages/AuthenticatedWorkspace"));
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -47,7 +47,7 @@ function App() {
     <ErrorBoundary>
       <PageMetadata />
       <ThemeProvider
-        defaultTheme="light"
+        defaultTheme="dark"
         switchable
       >
         <TooltipProvider>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TrpcContext } from "./_core/context";
 import { and, eq, sql } from "drizzle-orm";
-import { backgroundJobs, conversations, notifications, organizationMemberships, tickets } from "../drizzle/schema";
+import { backgroundJobs, conversations, messages, notifications, organizationMemberships, tickets } from "../drizzle/schema";
 import { getDb } from "./db";
 import { nexareplyRepository } from "./nexareplyRepository";
 import { appRouter } from "./routers";
@@ -52,10 +52,13 @@ describe("persistent multi-tenant foundation", () => {
     const caller = appRouter.createCaller(publicContext());
     const leadsCsv = await caller.nexareply.demo.imports.exportCsv({ kind: "leads" });
     const ordersCsv = await caller.nexareply.demo.imports.exportCsv({ kind: "orders" });
+    const productsCsv = await caller.nexareply.demo.imports.exportCsv({ kind: "products" });
     expect(leadsCsv).toContain('"სახელი","ტელეფონი","წყარო"');
     expect(leadsCsv.split("\n").length).toBeGreaterThan(1);
     expect(ordersCsv).toContain('"კლიენტი","სტატუსი"');
     expect(ordersCsv.split("\n").length).toBeGreaterThan(1);
+    expect(productsCsv).toContain('"ბრენდი","სურნელის დასახელება","SKU","მოცულობა"');
+    expect(productsCsv).toContain("Rose Amber");
   });
 
   it("deduplicates repeated ticket, notification, and pending job records and cleans up verification rows", async () => {
@@ -65,6 +68,7 @@ describe("persistent multi-tenant foundation", () => {
     const conversation = (await nexareplyRepository.listConversations(scope))[0];
     if (!conversation) throw new Error("Seeded conversation is unavailable.");
     const key = `integration-dedupe-${Date.now()}`;
+    const messageKey = `${key}-message`;
     const before = await nexareplyRepository.getConversation(scope, conversation.id);
     try {
       const ticketA = await nexareplyRepository.createTicketOnce(scope, conversation.id, "integration_test", "normal", key);
@@ -73,13 +77,17 @@ describe("persistent multi-tenant foundation", () => {
       const notificationB = await nexareplyRepository.createNotificationOnce(scope, { type: "needs_human", title: "integration test", body: "integration test", relatedConversationId: conversation.id, dedupeKey: key });
       const jobA = await nexareplyRepository.scheduleConversationProcessing(scope, conversation.id, key, new Date(Date.now() + 30_000));
       const jobB = await nexareplyRepository.scheduleConversationProcessing(scope, conversation.id, `${key}-latest`, new Date(Date.now() + 31_000));
+      await nexareplyRepository.addMessage(scope, { conversationId: conversation.id, sender: "ai", body: "Amadeo integration draft", source: "ai", inboundEventId: messageKey, isDraft: true });
+      const storedMessage = (await db.select().from(messages).where(and(eq(messages.organizationId, scope.organizationId), eq(messages.inboundEventId, messageKey))).limit(1))[0];
       expect(ticketA?.id).toBe(ticketB?.id);
       expect(notificationA?.id).toBe(notificationB?.id);
       expect(jobA).toBe(jobB);
+      expect(storedMessage?.deliveryStatus).toBe("draft");
     } finally {
       await db.delete(backgroundJobs).where(and(eq(backgroundJobs.organizationId, scope.organizationId), eq(backgroundJobs.conversationId, conversation.id), eq(backgroundJobs.type, "process_conversation"), sql`${backgroundJobs.dedupeKey} like ${`process:${conversation.id}:integration-dedupe-%`}`));
       await db.delete(notifications).where(and(eq(notifications.organizationId, scope.organizationId), eq(notifications.dedupeKey, key)));
       await db.delete(tickets).where(and(eq(tickets.organizationId, scope.organizationId), eq(tickets.idempotencyKey, key)));
+      await db.delete(messages).where(and(eq(messages.organizationId, scope.organizationId), eq(messages.inboundEventId, messageKey)));
       if (before) await db.update(conversations).set({ status: before.status, aiState: before.aiState, humanActive: before.humanActive }).where(eq(conversations.id, conversation.id));
     }
   });
