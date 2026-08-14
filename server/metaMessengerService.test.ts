@@ -1,0 +1,114 @@
+import crypto from "node:crypto";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { metaMessengerService } from "./metaMessengerService";
+import { nexareplyRepository, type WorkspaceScope } from "./nexareplyRepository";
+import { appRouter } from "./routers";
+import type { TrpcContext } from "./_core/context";
+
+const scope: WorkspaceScope = { organizationId: 7, role: "owner", isDemo: false, actorUserId: 9 };
+const metaEnvKeys = ["META_APP_ID", "META_APP_SECRET", "META_VERIFY_TOKEN", "META_PAGE_ACCESS_TOKEN", "META_OAUTH_REDIRECT_URI"] as const;
+const originalEnv = Object.fromEntries(metaEnvKeys.map((key) => [key, process.env[key]]));
+
+function ownerContext(): TrpcContext {
+  return {
+    user: { id: 9, openId: "owner-user", email: "owner@example.com", name: "Owner", loginMethod: "manus", role: "user", createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() },
+    req: { protocol: "https", headers: {} } as TrpcContext["req"],
+    res: {} as TrpcContext["res"],
+  };
+}
+
+function configureMeta() {
+  process.env.META_APP_ID = "app-id";
+  process.env.META_APP_SECRET = "app-secret";
+  process.env.META_VERIFY_TOKEN = "verify-token";
+  process.env.META_PAGE_ACCESS_TOKEN = "page-access-token-for-tests";
+  process.env.META_OAUTH_REDIRECT_URI = "https://example.test/api/integrations/meta/callback";
+}
+
+beforeEach(() => configureMeta());
+afterEach(() => {
+  vi.restoreAllMocks();
+  for (const key of metaEnvKeys) {
+    const value = originalEnv[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+});
+
+describe("Meta Messenger managed configuration and webhook security", () => {
+  it("stays disabled until every managed server setting exists", () => {
+    delete process.env.META_APP_SECRET;
+    expect(metaMessengerService.isConfigured()).toBe(false);
+    expect(metaMessengerService.createOAuthStart(scope)).toMatchObject({ configured: false, authorizationUrl: null, sessionId: null });
+  });
+
+  it("validates the webhook challenge and X-Hub-Signature-256 over the raw request body", () => {
+    const rawBody = Buffer.from('{"object":"page","entry":[]}');
+    const signature = `sha256=${crypto.createHmac("sha256", process.env.META_APP_SECRET!).update(rawBody).digest("hex")}`;
+    expect(metaMessengerService.verifyWebhookChallenge({ "hub.mode": "subscribe", "hub.verify_token": "verify-token", "hub.challenge": "challenge-accepted" })).toBe("challenge-accepted");
+    expect(metaMessengerService.verifyWebhookChallenge({ "hub.mode": "subscribe", "hub.verify_token": "wrong", "hub.challenge": "challenge-accepted" })).toBeNull();
+    expect(metaMessengerService.verifyWebhookSignature(rawBody, signature)).toBe(true);
+    expect(metaMessengerService.verifyWebhookSignature(rawBody, "sha256=bad")).toBe(false);
+  });
+
+  it("suppresses repeated inbound Meta events before mutating a conversation or scheduling work", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaConnectionByPageId").mockResolvedValue({ organizationId: 7, status: "connected" } as never);
+    const createEvent = vi.spyOn(nexareplyRepository, "createMetaWebhookEventOnce")
+      .mockResolvedValueOnce({ event: { id: 101 }, created: true } as never)
+      .mockResolvedValueOnce({ event: { id: 101 }, created: false } as never);
+    vi.spyOn(nexareplyRepository, "getOrCreateMetaConversation").mockResolvedValue({ id: 55 } as never);
+    const addMessage = vi.spyOn(nexareplyRepository, "addMessage").mockResolvedValue(undefined);
+    const schedule = vi.spyOn(nexareplyRepository, "scheduleConversationProcessing").mockResolvedValue(1);
+    vi.spyOn(nexareplyRepository, "getOrganization").mockResolvedValue({ debounceSeconds: 10 } as never);
+    vi.spyOn(nexareplyRepository, "updateMetaConnectionStatus").mockResolvedValue(undefined);
+    vi.spyOn(nexareplyRepository, "setMetaWebhookEventStatus").mockResolvedValue(undefined);
+
+    const payload = { object: "page", entry: [{ id: "page-1", messaging: [{ sender: { id: "psid-1" }, recipient: { id: "page-1" }, timestamp: 1, message: { mid: "mid-1", text: "გამარჯობა" } }] }] };
+    await expect(metaMessengerService.handleWebhookPayload(payload)).resolves.toMatchObject({ accepted: true, processed: 1, duplicates: 0 });
+    await expect(metaMessengerService.handleWebhookPayload(payload)).resolves.toMatchObject({ accepted: true, processed: 0, duplicates: 1 });
+    expect(createEvent).toHaveBeenCalledTimes(2);
+    expect(addMessage).toHaveBeenCalledTimes(1);
+    expect(schedule).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects invalid OAuth state and never returns token-shaped Page candidate fields", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaOauthSessionByStateHash").mockResolvedValue(undefined);
+    await expect(metaMessengerService.handleOAuthCallback({ state: "invalid-state", code: "authorization-code" })).resolves.toMatchObject({ ok: false });
+
+    vi.spyOn(nexareplyRepository, "getMetaOauthSession").mockResolvedValue({
+      id: "session-1",
+      status: "pages_ready",
+      expiresAt: new Date(Date.now() + 60_000),
+      pageCandidates: [{ id: "page-1", name: "TechZone", accessToken: "must-not-leak" }],
+    } as never);
+    const response = await metaMessengerService.getOAuthPages(scope, "session-1");
+    expect(response).toEqual({ configured: true, status: "pages_ready", pages: [{ id: "page-1", name: "TechZone" }] });
+    expect(JSON.stringify(response)).not.toMatch(/accessToken|must-not-leak|secret|encrypted/i);
+  });
+
+  it("requires repository-scoped ownership for Page selection sessions", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaOauthSession").mockResolvedValue(undefined);
+    await expect(metaMessengerService.selectPage(scope, { sessionId: "session-from-another-owner", pageId: "page-1" })).rejects.toThrow("Meta Page selection session is unavailable.");
+  });
+
+  it("returns expired for an expired OAuth Page-list session without exposing candidates", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaOauthSession").mockResolvedValue({ id: "session-expired", status: "pending", expiresAt: new Date(Date.now() - 1), pageCandidates: [{ id: "page-1", name: "Must not return" }] } as never);
+    await expect(metaMessengerService.getOAuthPages(scope, "session-expired")).resolves.toEqual({ configured: true, status: "expired", pages: [] });
+  });
+
+  it("serializes owner Meta status without token, credential, or secret fields", async () => {
+    vi.spyOn(nexareplyRepository, "getWorkspaceScope").mockResolvedValue(scope);
+    vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue({ pageId: "page-1", pageName: "TechZone", status: "connected", lastError: null, webhookVerifiedAt: null, lastInboundAt: null, lastDeliveryAt: null, accessToken: "must-not-leak", encryptedBlob: "must-not-leak" } as never);
+    const response = await appRouter.createCaller(ownerContext()).nexareply.workspace.owner.meta.status({ organizationId: 7 });
+    expect(response).toMatchObject({ configured: true, status: "connected", page: { id: "page-1", name: "TechZone" } });
+    expect(JSON.stringify(response)).not.toMatch(/accessToken|encrypted|secret|must-not-leak/i);
+  });
+
+  it("returns a safe delivery-failed state when the server-side Graph API request is rejected", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue({ pageId: "page-1", status: "connected" } as never);
+    const updateStatus = vi.spyOn(nexareplyRepository, "updateMetaConnectionStatus").mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: { message: "Provider rejected request" } }) }));
+    await expect(metaMessengerService.sendText(scope, { psid: "psid-1", text: "ტესტი" })).resolves.toEqual({ delivered: false, status: "delivery_failed", error: "Meta message delivery failed." });
+    expect(updateStatus).toHaveBeenCalledWith(scope, expect.objectContaining({ status: "delivery_failed", delivery: true }));
+  });
+});

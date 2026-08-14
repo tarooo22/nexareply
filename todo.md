@@ -70,3 +70,15 @@
 - [x] Verify every exposed public Demo data response omits integration-setting and secret fields, while non-owners are denied owner integration state access.
 - [x] Extend public secret-boundary integration coverage to Demo lead and draft-order CSV export responses.
 - [x] Update README, architecture, QA checklist, and Demo-versus-production documentation for the persistent foundation.
+- [x] Assess existing connector configuration, managed-secret policy, data schema, and server routes for the Meta Messenger adapter.
+- [x] Design and document disabled-by-default Meta OAuth, Page selection, webhook, signature, inbound idempotency, outbound delivery, and status contracts.
+- [x] Add persistent Meta integration metadata and webhook delivery/audit support without storing provider secrets in the database.
+- [x] Implement server-only Meta OAuth/Page selection and Messenger send adapter contracts with unconfigured, verification-failed, connected, and delivery-failed states.
+- [x] Implement webhook challenge verification, X-Hub-Signature-256 HMAC validation, and idempotent inbound Messenger event handling.
+- [x] Add owner-facing Meta connection/status and Page selection UI while preserving disabled behavior without managed credentials.
+- [x] Add META_SETUP.md with exact Meta configuration steps, required managed-secret names, callback/webhook setup, and explicit worker-hosting limitation.
+- [x] Add tests for disabled-state behavior, OAuth boundary, signature validation, webhook idempotency, outbound delivery failure, and secret non-exposure.
+- [ ] Prepare the next separate phase for owner-facing membership management and email invitations after Meta tests pass.
+- [x] Remove persisted Meta provider tokens from schema and services; use only managed server-side Page token configuration and persist Page metadata only.
+- [x] Add Meta-specific tests for OAuth invalid/expired/session-scoping boundaries and for token non-exposure in owner status and Page-selection responses.
+- [x] Add explicit Meta OAuth expiry and owner meta-status response secret non-exposure tests.

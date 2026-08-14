@@ -5,10 +5,10 @@ NexaReply currently operates in a deterministic **Demo Mode**. It does not recei
 | Capability | Demo behavior | Production enablement boundary |
 |---|---|---|
 | AI reply suggestion | Uses `shared/demo-ai.ts` and verified local catalog facts | Enable an explicit server-side provider key, then call `server/aiReplyAdapter.ts` through a protected organization-scoped procedure |
-| Meta Messenger | Displays an unconfigured integration state | Store Meta credentials server-side, verify webhook signatures, acknowledge quickly, and enqueue processing durably |
+| Meta Messenger | Displays an unconfigured state and never receives Demo webhooks | The protected owner-only adapter uses managed credentials, OAuth Page selection, encrypted token custody, webhook challenge/HMAC validation, provider-event idempotency, and server-side delivery. See [`META_SETUP.md`](../META_SETUP.md). |
 | Owner notifications | Shows in-app Demo events | Configure an approved email or Telegram delivery adapter with idempotency keyed by conversation and event type |
 | Debounce | Displays a configurable value and a shortened UI simulation | Reset a durable per-conversation timer for each inbound message; the worker must respect organization isolation and no-auto-send policies |
 
 The `.env.example` file lists names only. Actual values must be supplied through the project’s managed secret configuration and must never be committed.
 
-Managed secret names for a production rollout are `OPENAI_API_KEY`, `OPENAI_MODEL`, `META_APP_ID`, `META_APP_SECRET`, `META_VERIFY_TOKEN`, `META_PAGE_ACCESS_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OWNER_CHAT_ID`, `DATABASE_URL`, `S3_BUCKET`, `S3_REGION`, and `ENCRYPTION_KEY`. They are intentionally documented here rather than stored in a repository environment file.
+Managed secret names for a production rollout are `OPENAI_API_KEY`, `OPENAI_MODEL`, `META_APP_ID`, `META_APP_SECRET`, `META_VERIFY_TOKEN`, `META_PAGE_ACCESS_TOKEN`, `META_OAUTH_REDIRECT_URI`, `META_GRAPH_API_VERSION`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OWNER_CHAT_ID`, `DATABASE_URL`, `S3_BUCKET`, `S3_REGION`, and `ENCRYPTION_KEY`. OAuth supports owner-scoped Page discovery and selection only; Page tokens are never persisted and remain exclusively in managed `META_PAGE_ACCESS_TOKEN`. These names are documented here rather than stored in a repository environment file.

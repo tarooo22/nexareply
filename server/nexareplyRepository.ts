@@ -2,11 +2,15 @@ import { and, asc, desc, eq, like, or, sql } from "drizzle-orm";
 import {
   auditEvents,
   backgroundJobs,
+  conversationParticipants,
   conversations,
   draftOrders,
   integrationSettings,
   knowledgeFacts,
   leads,
+  metaConnections,
+  metaOauthSessions,
+  metaWebhookEvents,
   messages,
   notifications,
   orderItems,
@@ -381,6 +385,119 @@ export const nexareplyRepository = {
   async listIntegrationStates(scope: WorkspaceScope) {
     const db = await requireDb();
     return db.select().from(integrationSettings).where(eq(integrationSettings.organizationId, scope.organizationId));
+  },
+
+  async getMetaConnection(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return (await db.select().from(metaConnections).where(eq(metaConnections.organizationId, scope.organizationId)).limit(1))[0];
+  },
+
+  async getMetaConnectionByPageId(pageId: string) {
+    const db = await requireDb();
+    return (await db.select().from(metaConnections).where(eq(metaConnections.pageId, pageId)).limit(1))[0];
+  },
+
+  async upsertMetaConnection(scope: WorkspaceScope, input: { pageId: string; pageName: string; status: "connected" | "delivery_failed" | "verification_failed" | "disabled" | "unconfigured"; lastError?: string | null; webhookVerifiedAt?: Date | null }) {
+    const db = await requireDb();
+    const existing = await this.getMetaConnection(scope);
+    const connection = {
+      pageId: input.pageId,
+      pageName: input.pageName,
+      status: input.status,
+      lastError: input.lastError ?? null,
+      webhookVerifiedAt: input.webhookVerifiedAt ?? null,
+    };
+    if (existing) {
+      await db.update(metaConnections).set(connection).where(eq(metaConnections.id, existing.id));
+    } else {
+      await db.insert(metaConnections).values({ organizationId: scope.organizationId, ...connection });
+    }
+    await this.addAudit(scope, "meta.connection_updated", "meta_connection", input.pageId, { status: input.status, pageName: input.pageName });
+    return this.getMetaConnection(scope);
+  },
+
+  async updateMetaConnectionStatus(scope: WorkspaceScope, input: { status: "unconfigured" | "verification_failed" | "connected" | "delivery_failed" | "disabled"; error?: string | null; inbound?: boolean; delivery?: boolean; verified?: boolean }) {
+    const db = await requireDb();
+    const current = await this.getMetaConnection(scope);
+    if (!current) return undefined;
+    await db.update(metaConnections).set({
+      status: input.status,
+      lastError: input.error ?? null,
+      ...(input.inbound ? { lastInboundAt: new Date() } : {}),
+      ...(input.delivery ? { lastDeliveryAt: new Date() } : {}),
+      ...(input.verified ? { webhookVerifiedAt: new Date() } : {}),
+    }).where(eq(metaConnections.id, current.id));
+    return this.getMetaConnection(scope);
+  },
+
+  async createMetaOauthSession(scope: WorkspaceScope, input: { id: string; stateHash: string; expiresAt: Date }) {
+    const db = await requireDb();
+    await db.insert(metaOauthSessions).values({ id: input.id, stateHash: input.stateHash, organizationId: scope.organizationId, userId: scope.actorUserId!, expiresAt: input.expiresAt });
+  },
+
+  async getMetaOauthSessionByStateHash(stateHash: string) {
+    const db = await requireDb();
+    return (await db.select().from(metaOauthSessions).where(eq(metaOauthSessions.stateHash, stateHash)).limit(1))[0];
+  },
+
+  async getMetaOauthSession(scope: WorkspaceScope, sessionId: string) {
+    const db = await requireDb();
+    return (await db.select().from(metaOauthSessions).where(and(eq(metaOauthSessions.id, sessionId), eq(metaOauthSessions.organizationId, scope.organizationId), eq(metaOauthSessions.userId, scope.actorUserId!))).limit(1))[0];
+  },
+
+  async setMetaOauthPages(sessionId: string, pageCandidates: unknown) {
+    const db = await requireDb();
+    await db.update(metaOauthSessions).set({ status: "pages_ready", pageCandidates: pageCandidates as Record<string, unknown>, error: null }).where(eq(metaOauthSessions.id, sessionId));
+  },
+
+  async failMetaOauthSession(sessionId: string, error: string) {
+    const db = await requireDb();
+    await db.update(metaOauthSessions).set({ status: "failed", error }).where(eq(metaOauthSessions.id, sessionId));
+  },
+
+  async completeMetaOauthSession(scope: WorkspaceScope, sessionId: string) {
+    const db = await requireDb();
+    await db.update(metaOauthSessions).set({ status: "completed", pageCandidates: null, completedAt: new Date(), error: null }).where(and(eq(metaOauthSessions.id, sessionId), eq(metaOauthSessions.organizationId, scope.organizationId), eq(metaOauthSessions.userId, scope.actorUserId!)));
+  },
+
+  async createMetaWebhookEventOnce(input: { organizationId: number; pageId: string; eventKey: string; eventType: string; payload: Record<string, unknown> }) {
+    const db = await requireDb();
+    const existing = (await db.select().from(metaWebhookEvents).where(and(eq(metaWebhookEvents.organizationId, input.organizationId), eq(metaWebhookEvents.eventKey, input.eventKey))).limit(1))[0];
+    if (existing) return { event: existing, created: false };
+    try {
+      await db.insert(metaWebhookEvents).values({ ...input, status: "received" });
+    } catch (error) {
+      const duplicate = (await db.select().from(metaWebhookEvents).where(and(eq(metaWebhookEvents.organizationId, input.organizationId), eq(metaWebhookEvents.eventKey, input.eventKey))).limit(1))[0];
+      if (duplicate) return { event: duplicate, created: false };
+      throw error;
+    }
+    const event = (await db.select().from(metaWebhookEvents).where(and(eq(metaWebhookEvents.organizationId, input.organizationId), eq(metaWebhookEvents.eventKey, input.eventKey))).limit(1))[0];
+    if (!event) throw new Error("Meta webhook event could not be persisted");
+    return { event, created: true };
+  },
+
+  async setMetaWebhookEventStatus(eventId: number, status: "ignored" | "processed" | "failed", error?: string) {
+    const db = await requireDb();
+    await db.update(metaWebhookEvents).set({ status, ...(status === "processed" || status === "ignored" ? { processedAt: new Date() } : {}), ...(error ? { error } : {}) }).where(eq(metaWebhookEvents.id, eventId));
+  },
+
+  async getOrCreateMetaConversation(scope: WorkspaceScope, input: { pageId: string; psid: string; displayName?: string | null }) {
+    const db = await requireDb();
+    const externalId = `meta:${input.pageId}:${input.psid}`;
+    const existing = await db.select({ conversation: conversations })
+      .from(conversationParticipants)
+      .innerJoin(conversations, and(eq(conversationParticipants.conversationId, conversations.id), eq(conversations.organizationId, scope.organizationId)))
+      .where(and(eq(conversationParticipants.organizationId, scope.organizationId), eq(conversationParticipants.participantType, "customer"), eq(conversationParticipants.externalId, externalId)))
+      .limit(1);
+    if (existing[0]?.conversation) return existing[0].conversation;
+
+    const created = await db.insert(conversations).values({ organizationId: scope.organizationId, customerName: input.displayName?.trim() || "Messenger მომხმარებელი", preview: "ახალი Meta Messenger საუბარი" });
+    const insertId = Number((created as unknown as [{ insertId?: number }])[0]?.insertId);
+    if (!Number.isInteger(insertId) || insertId <= 0) throw new Error("Meta conversation could not be created");
+    await db.insert(conversationParticipants).values({ organizationId: scope.organizationId, conversationId: insertId, participantType: "customer", displayName: input.displayName?.trim() || "Messenger მომხმარებელი", externalId });
+    const conversation = (await db.select().from(conversations).where(and(eq(conversations.id, insertId), eq(conversations.organizationId, scope.organizationId))).limit(1))[0];
+    if (!conversation) throw new Error("Meta conversation could not be loaded");
+    return conversation;
   },
 
   async ensurePlan() {

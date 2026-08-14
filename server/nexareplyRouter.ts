@@ -4,6 +4,7 @@ import { seedTechZoneDemo } from "./demoSeed";
 import { createDatabaseBackedDemoDraft, recordInboundDemoMessage } from "./demoAiService";
 import { processDueConversationJobs } from "./jobWorker";
 import { commitCatalogImport, exportSalesCsv, previewCatalogImport } from "./importExportService";
+import { metaMessengerService } from "./metaMessengerService";
 import { nexareplyRepository, type WorkspaceScope } from "./nexareplyRepository";
 import { requireWorkspaceRole } from "./workspaceAuthorization";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -128,6 +129,13 @@ export const nexareplyRouter = router({
     }),
     owner: router({
       integrationStates: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listIntegrationStates(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
+      meta: router({
+        status: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => metaMessengerService.getConnectionStatus(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
+        startOAuth: protectedProcedure.input(organizationInput).mutation(async ({ ctx, input }) => metaMessengerService.persistOAuthStart(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
+        oauthPages: protectedProcedure.input(organizationInput.extend({ sessionId: z.string().min(16).max(64) })).query(async ({ ctx, input }) => metaMessengerService.getOAuthPages(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.sessionId)),
+        selectPage: protectedProcedure.input(organizationInput.extend({ sessionId: z.string().min(16).max(64), pageId: z.string().min(1).max(80) })).mutation(async ({ ctx, input }) => metaMessengerService.selectPage(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input)),
+        sendText: protectedProcedure.input(organizationInput.extend({ psid: z.string().min(1).max(160), text: z.string().min(1).max(2000) })).mutation(async ({ ctx, input }) => metaMessengerService.sendText(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input)),
+      }),
     }),
     memberships: router({
       list: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listMemberships(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),

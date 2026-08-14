@@ -286,6 +286,49 @@ export const integrationSettings = mysqlTable("integration_settings", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => [uniqueIndex("integrations_org_provider_unique").on(table.organizationId, table.provider)]);
 
+/** Meta Page connection metadata. Provider credentials are only managed server secrets. */
+export const metaConnections = mysqlTable("meta_connections", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  pageId: varchar("pageId", { length: 80 }),
+  pageName: varchar("pageName", { length: 255 }),
+  status: mysqlEnum("status", ["unconfigured", "verification_failed", "connected", "delivery_failed", "disabled"]).notNull().default("unconfigured"),
+  lastError: text("lastError"),
+  webhookVerifiedAt: timestamp("webhookVerifiedAt"),
+  lastInboundAt: timestamp("lastInboundAt"),
+  lastDeliveryAt: timestamp("lastDeliveryAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [uniqueIndex("meta_connections_org_unique").on(table.organizationId), uniqueIndex("meta_connections_page_unique").on(table.pageId)]);
+
+/** Short-lived OAuth handoff. It stores only selected-account Page IDs/names, never provider tokens. */
+export const metaOauthSessions = mysqlTable("meta_oauth_sessions", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  stateHash: varchar("stateHash", { length: 64 }).notNull(),
+  organizationId: int("organizationId").notNull(),
+  userId: int("userId").notNull(),
+  status: mysqlEnum("status", ["pending", "pages_ready", "completed", "failed", "expired"]).notNull().default("pending"),
+  pageCandidates: json("pageCandidates"),
+  error: text("error"),
+  expiresAt: timestamp("expiresAt").notNull(),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [uniqueIndex("meta_oauth_state_unique").on(table.stateHash), index("meta_oauth_owner_expiry_idx").on(table.organizationId, table.userId, table.expiresAt)]);
+
+/** Incoming Meta webhook events provide provider-level idempotency before conversation mutation. */
+export const metaWebhookEvents = mysqlTable("meta_webhook_events", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  pageId: varchar("pageId", { length: 80 }).notNull(),
+  eventKey: varchar("eventKey", { length: 255 }).notNull(),
+  eventType: varchar("eventType", { length: 80 }).notNull(),
+  payload: json("payload"),
+  status: mysqlEnum("status", ["received", "ignored", "processed", "failed"]).notNull().default("received"),
+  error: text("error"),
+  receivedAt: timestamp("receivedAt").defaultNow().notNull(),
+  processedAt: timestamp("processedAt"),
+}, (table) => [uniqueIndex("meta_events_org_key_unique").on(table.organizationId, table.eventKey), index("meta_events_org_page_received_idx").on(table.organizationId, table.pageId, table.receivedAt)]);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Organization = typeof organizations.$inferSelect;
@@ -293,3 +336,4 @@ export type Product = typeof products.$inferSelect;
 export type ProductVariant = typeof productVariants.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
+export type MetaConnection = typeof metaConnections.$inferSelect;

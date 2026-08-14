@@ -15,6 +15,20 @@
       "when": 1786658548884,
       "tag": "0001_normal_loa",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1786664267576,
+      "tag": "0002_mature_epoch",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1786667603670,
+      "tag": "0003_graceful_blindfold",
+      "breakpoints": true
     }
   ]
 }
