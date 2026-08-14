@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 describe("managed Meta Page access token", () => {
-  it("is accepted by the lightweight Meta identity endpoint without exposing the token", async () => {
+  const operationalCheck = process.env.RUN_META_PAGE_TOKEN_CHECK === "true" ? it : it.skip;
+
+  operationalCheck("is accepted by the selected Page subscription endpoint without exposing the token", async () => {
     const pageAccessToken = process.env.META_PAGE_ACCESS_TOKEN;
     const pageId = process.env.META_PAGE_ID;
     expect(Boolean(pageAccessToken)).toBe(true);

@@ -51,6 +51,14 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(metaMessengerService.verifyWebhookSignature(rawBody, "sha256=bad")).toBe(false);
   });
 
+  it("accepts the webhook GET challenge with only the managed verify token before OAuth/Page configuration exists", () => {
+    delete process.env.META_APP_ID;
+    delete process.env.META_APP_SECRET;
+    delete process.env.META_PAGE_ACCESS_TOKEN;
+    delete process.env.META_OAUTH_REDIRECT_URI;
+    expect(metaMessengerService.verifyWebhookChallenge({ "hub.mode": "subscribe", "hub.verify_token": "verify-token", "hub.challenge": "challenge-only" })).toBe("challenge-only");
+  });
+
   it("suppresses repeated inbound Meta events before mutating a conversation or scheduling work", async () => {
     vi.spyOn(nexareplyRepository, "getMetaConnectionByPageId").mockResolvedValue({ organizationId: 7, status: "connected" } as never);
     const createEvent = vi.spyOn(nexareplyRepository, "createMetaWebhookEventOnce")

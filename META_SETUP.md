@@ -44,6 +44,8 @@ OAuth-ით შედით NexaReply protected workspace-ში როგო�
 
 NexaReply ავტომატურად ცდილობს არჩეული Page-ის subscription-ს `subscribed_apps` edge-ზე, მაგრამ ამ მოქმედებისთვის იყენებს მხოლოდ managed `META_PAGE_ACCESS_TOKEN`-ს. ამ token-ს `pages_messaging`/`pages_manage_metadata` უფლებები სჭირდება. [1] `meta_connections` ინახავს მხოლოდ Page-ის ID-ს, სახელსა და status metadata-ს; UI იღებს მხოლოდ იმავე არასაიდუმლო მონაცემებს.
 
+თუ Meta აბრუნებს `Requires pages_manage_metadata permission to manage the object`, subscriptions-ის checkbox-ები საკმარისი არ არის. დაადასტურეთ, რომ token-ის გენერაციის Facebook ანგარიშს არჩეულ Page-ზე აქვს **Full control**, რომ `pages_manage_metadata` მზადაა გამოყენებისთვის **App Review → Permissions and Features**-ში, და შემდეგ ზუსტად იმავე Page-ის რიგიდან თავიდან შექმენით Page token. Page ID და token ყოველთვის ერთი Page-ის რიგიდან უნდა მოდიოდეს.
+
 | Workspace მდგომარეობა | მნიშვნელობა | Owner-ის შემდეგი ნაბიჯი |
 |---|---|---|
 | **არ არის კონფიგურირებული** | რომელიმე აუცილებელი managed setting არ არის შევსებული. | დაამატეთ ყველა key და განაახლეთ გვერდი. |
