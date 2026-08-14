@@ -12,4 +12,11 @@ describe("WorkspaceNav membership-driven UI", () => {
     expect(operatorMarkup).not.toContain("წევრები");
     expect(operatorMarkup).not.toContain("ინტეგრაციები");
   });
+
+  it("keeps the complete mobile navigation reachable without forcing a tall sidebar", () => {
+    const markup = renderToStaticMarkup(createElement(WorkspaceNav, { role: "owner", active: "overview", onSelect: () => undefined }));
+    expect(markup).toContain("overflow-x-auto");
+    expect(markup).toContain("lg:grid");
+    expect(markup).toContain("shrink-0");
+  });
 });

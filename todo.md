@@ -131,7 +131,7 @@
 - [x] Build persistent analytics and alerts screens with meaningful Amadeo operational metrics and actionable states.
 - [x] Replace every protected navigation placeholder with a Georgian-first dark-purple functional screen and complete empty/loading/error states.
 - [x] Add regression tests for Amadeo persistence, tenant isolation, catalog import/export, AI safety/handoff, Meta boundaries, and protected UI states.
-- [ ] Run responsive browser QA, document Amadeo workspace operations, and publish the completed persistent workspace.
+- [x] Run responsive browser QA, document Amadeo workspace operations, and publish the completed persistent workspace.
 - [x] Define explicit Amadeo-specific response/input contracts for knowledge, conversations, notifications/alerts, and analytics with perfume-store semantics.
 - [x] Add regression tests for Amadeo product, assistant, ticket, knowledge, inbox, alerts, and analytics contracts plus Meta secret-boundary assertions.
 - [x] Document finalized Amadeo workspace data contracts and the mapping from persistent records to alerts and analytics metrics.

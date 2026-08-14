@@ -64,3 +64,18 @@ Alert იქმნება persistent `notifications` record-ად handoff, AI
 3. Owner-მა დაარეგულიროს AI persona და fallback message AI კონსულტანტის გვერდზე.
 4. Messenger-ზე შემოსული პირველი customer message ავტომატურად შექმნის persistent inbox conversation-ს.
 5. უცნობი კითხვა გამოჩნდება Tickets და Alerts ეკრანზე human resolution-ისთვის.
+
+## Responsive ოპერაციული გამოყენება და QA
+
+Protected workspace desktop-ზე იყენებს მუდმივ მარცხენა sidebar-ს. პატარა ეკრანზე organization selector და ყველა navigation destination რჩება header-ში, ხოლო destinations ჰორიზონტალურად scrollable ზოლში ჩანს; ამიტომ არცერთი owner/operator action არ იკარგება ვიწრო ეკრანზე. ფართო catalog table-ები ინარჩუნებს მონაცემის მთლიანობას horizontal scroll-ით, ხოლო Inbox, Knowledge, Assistant და Members panels ვერტიკალურად ლაგდება.
+
+Final live QA-ში დადასტურდა ყველა protected destination-ის loading, empty ან persistent-data მდგომარეობა: Overview, Inbox, Products, Knowledge, AI კონსულტანტი, Tickets, ანალიტიკა, შეტყობინებები, წევრები და ინტეგრაციები. Meta panel აჩვენებს მხოლოდ უსაფრთხო connected metadata-ს — **Amadeo ⋅ ამადეო** და მისი Page ID — და provider credential არასოდეს გადადის browser-ში.
+
+| Verification | Result |
+|---|---|
+| TypeScript check | Passed |
+| Vitest regression suite | 57 passed; 2 managed-secret integration tests intentionally skipped |
+| Production build | Passed |
+| Browser console during protected-screen navigation | No console output/errors |
+
+Production build კვლავ აჩვენებს bundle-size advisory-ს Analytics/vendor chunk-ებისთვის. ეს არ უშლის workspace-ის ფუნქციონირებას, მაგრამ შემდგომ performance iteration-ში შეიძლება dynamic chunk splitting განხილულ იქნას.

@@ -21,5 +21,5 @@ export function visibleWorkspaceNavigation(role: WorkspaceRole) {
 }
 
 export function WorkspaceNav({ role, active, onSelect }: { role: WorkspaceRole; active: string; onSelect: (section: string) => void }) {
-  return <nav className="mt-5 grid gap-1" aria-label="Protected workspace navigation">{visibleWorkspaceNavigation(role).map((item) => { const Icon = item.icon; return <button type="button" key={item.id} onClick={() => onSelect(item.id)} className={`flex min-h-10 items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold ${active === item.id ? "bg-primary text-primary-foreground" : "text-sidebar-foreground/75 hover:bg-sidebar-accent"}`}><Icon className="size-4" />{item.label}</button>; })}</nav>;
+  return <nav className="mt-5 -mx-1 flex gap-1 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:overflow-visible lg:px-0 lg:pb-0" aria-label="Protected workspace navigation">{visibleWorkspaceNavigation(role).map((item) => { const Icon = item.icon; return <button type="button" key={item.id} onClick={() => onSelect(item.id)} className={`flex min-h-10 shrink-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold lg:w-full ${active === item.id ? "bg-primary text-primary-foreground" : "text-sidebar-foreground/75 hover:bg-sidebar-accent"}`}><Icon className="size-4" />{item.label}</button>; })}</nav>;
 }
