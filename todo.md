@@ -138,3 +138,4 @@
 - [x] Add secret-safe Amadeo response DTOs for knowledge, inbox conversations/messages, alerts, tickets and analytics instead of returning unrestricted raw rows.
 - [x] Add focused Vitest coverage for assistant settings read/update, knowledge CRUD, ticket resolution, inbox reply success/failure delivery status, and alerts/analytics response contracts.
 - [x] Add Meta credential non-exposure assertions for all new Amadeo workspace response DTOs.
+- [x] Capture and deliver a complete, clearly named screenshot set for the public NexaReply site and every authenticated Amadeo workspace screen.
