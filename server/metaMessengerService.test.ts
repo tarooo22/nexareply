@@ -26,7 +26,10 @@ function configureMeta() {
   process.env.META_TOKEN_ENCRYPTION_KEY = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
 }
 
-beforeEach(() => configureMeta());
+beforeEach(() => {
+  configureMeta();
+  vi.spyOn(nexareplyRepository, "consumeRateLimit").mockResolvedValue({ allowed: true, hits: 1, remaining: 119, windowStartsAt: new Date() });
+});
 afterEach(() => {
   vi.restoreAllMocks();
   for (const key of metaEnvKeys) {
@@ -206,5 +209,15 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: { message: "Provider rejected request" } }) }));
     await expect(metaMessengerService.sendText(scope, { psid: "psid-1", text: "ტესტი" })).resolves.toEqual({ delivered: false, status: "delivery_failed", error: "Meta message delivery failed." });
     expect(updateStatus).toHaveBeenCalledWith(scope, expect.objectContaining({ status: "delivery_failed", delivery: true }));
+  });
+
+  it("stops an outbound Page send at the tenant rate limit before calling Graph", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue({ pageId: "page-1", status: "connected" } as never);
+    vi.mocked(nexareplyRepository.consumeRateLimit).mockResolvedValue({ allowed: false, hits: 121, remaining: 0, windowStartsAt: new Date() });
+    const graph = vi.fn();
+    vi.stubGlobal("fetch", graph);
+
+    await expect(metaMessengerService.sendText(scope, { psid: "psid-1", text: "ტესტი" })).resolves.toEqual({ delivered: false, status: "delivery_failed", error: "Meta message rate limit reached. Try again in the next minute." });
+    expect(graph).not.toHaveBeenCalled();
   });
 });

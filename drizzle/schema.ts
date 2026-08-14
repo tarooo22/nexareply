@@ -300,7 +300,7 @@ export const conversations = mysqlTable("conversations", {
   lastMessageAt: timestamp("lastMessageAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-}, (table) => [index("conversations_org_status_idx").on(table.organizationId, table.status), index("conversations_org_updated_idx").on(table.organizationId, table.updatedAt)]);
+}, (table) => [index("conversations_org_status_idx").on(table.organizationId, table.status), index("conversations_org_updated_idx").on(table.organizationId, table.updatedAt), index("conversations_org_updated_id_idx").on(table.organizationId, table.updatedAt, table.id)]);
 
 export const conversationParticipants = mysqlTable("conversation_participants", {
   id: int("id").autoincrement().primaryKey(),
@@ -408,12 +408,24 @@ export const backgroundJobs = mysqlTable("background_jobs", {
   dedupeKey: varchar("dedupeKey", { length: 200 }).notNull(),
   scheduledAt: timestamp("scheduledAt").notNull(),
   attempts: int("attempts").notNull().default(0),
+  leaseToken: varchar("leaseToken", { length: 64 }),
+  leaseExpiresAt: timestamp("leaseExpiresAt"),
   payload: json("payload"),
   lastError: text("lastError"),
   processedAt: timestamp("processedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-}, (table) => [uniqueIndex("jobs_org_dedupe_unique").on(table.organizationId, table.dedupeKey), index("jobs_due_idx").on(table.status, table.scheduledAt)]);
+}, (table) => [uniqueIndex("jobs_org_dedupe_unique").on(table.organizationId, table.dedupeKey), index("jobs_due_idx").on(table.status, table.scheduledAt), index("jobs_org_status_due_idx").on(table.organizationId, table.status, table.scheduledAt), index("jobs_lease_expiry_idx").on(table.status, table.leaseExpiresAt)]);
+
+export const rateLimitBuckets = mysqlTable("rate_limit_buckets", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  bucketKey: varchar("bucketKey", { length: 120 }).notNull(),
+  windowStartsAt: timestamp("windowStartsAt").notNull(),
+  hitCount: int("hitCount").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [uniqueIndex("rate_limit_org_bucket_window_unique").on(table.organizationId, table.bucketKey, table.windowStartsAt), index("rate_limit_bucket_expiry_idx").on(table.windowStartsAt)]);
 
 export const integrationSettings = mysqlTable("integration_settings", {
   id: int("id").autoincrement().primaryKey(),

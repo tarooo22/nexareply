@@ -173,6 +173,10 @@ export const nexareplyRouter = router({
     }),
     conversations: router({
       list: protectedProcedure.input(organizationInput.extend({ query: z.string().max(160).optional(), status: z.enum(["open", "pending", "closed"]).optional() })).query(async ({ ctx, input }) => (await nexareplyRepository.listConversations(await workspaceScope(ctx.user.id, input.organizationId), input.query, input.status)).map(conversationDto)),
+      listPage: protectedProcedure.input(organizationInput.extend({ query: z.string().max(160).optional(), status: z.enum(["open", "pending", "closed"]).optional(), cursor: z.object({ updatedAt: z.coerce.date(), id: z.number().int().positive() }).optional(), limit: z.number().int().min(10).max(50).default(30) })).query(async ({ ctx, input }) => {
+        const page = await nexareplyRepository.listConversationPage(await workspaceScope(ctx.user.id, input.organizationId), input);
+        return { items: page.items.map(conversationDto), nextCursor: page.nextCursor };
+      }),
       messages: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive() })).query(async ({ ctx, input }) => (await nexareplyRepository.listMessages(await workspaceScope(ctx.user.id, input.organizationId), input.conversationId)).map(messageDto)),
       context: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive() })).query(async ({ ctx, input }) => {
         const context = await nexareplyRepository.getConversationContext(await workspaceScope(ctx.user.id, input.organizationId), input.conversationId);
@@ -218,6 +222,12 @@ export const nexareplyRouter = router({
       markRead: protectedProcedure.input(organizationInput.extend({ ids: z.array(z.number().int().positive()).optional() })).mutation(async ({ ctx, input }) => nexareplyRepository.markNotificationsRead(await workspaceScope(ctx.user.id, input.organizationId), input.ids)),
     }),
     analytics: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => analyticsDto(await nexareplyRepository.getAnalytics(await workspaceScope(ctx.user.id, input.organizationId)))),
+    operations: router({
+      queueStatus: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => {
+        const status = await nexareplyRepository.getQueueStatus(await workspaceScope(ctx.user.id, input.organizationId));
+        return { pending: status.pending, processing: status.processing, failed: status.failed, overdue: status.overdue, oldestPendingAt: status.oldestPendingAt, tenSecondGuarantee: status.tenSecondGuarantee, schedulerCadenceSeconds: status.schedulerCadenceSeconds, schedulerStatus: status.schedulerStatus };
+      }),
+    }),
     tickets: router({
       list: protectedProcedure.input(organizationInput.extend({ status: z.enum(["open", "resolved", "closed"]).optional() })).query(async ({ ctx, input }) => (await nexareplyRepository.listTickets(await workspaceScope(ctx.user.id, input.organizationId), input.status)).map(ticketDto)),
       resolve: protectedProcedure.input(organizationInput.extend({ ticketId: z.number().int().positive() })).mutation(async ({ ctx, input }) => nexareplyRepository.resolveTicket(await workspaceScope(ctx.user.id, input.organizationId), input.ticketId)),

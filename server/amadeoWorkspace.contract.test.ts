@@ -97,6 +97,23 @@ describe("Amadeo workspace response contracts", () => {
     expect(JSON.stringify({ context, messages, handoff })).not.toMatch(/external.?id|private.?psid|provider.?token|idempotency.?key|must-not-return/i);
   });
 
+  it("returns tenant-scoped cursor pages and honest queue readiness without job payload exposure", async () => {
+    const api = await caller();
+    const page = { items: [{ id: 81, leadId: null, customerName: "ლიკა", customerPhone: null, status: "open", humanActive: false, aiState: "active", priority: "normal", preview: "მიწოდება", preferredProduct: null, lastInboundAt: null, lastMessageAt: new Date(), createdAt: new Date(), updatedAt: new Date(), jobPayload: "never-return" }], nextCursor: { updatedAt: new Date(), id: 81 } };
+    const listPage = vi.spyOn(nexareplyRepository, "listConversationPage").mockResolvedValue(page as never);
+    vi.spyOn(nexareplyRepository, "getQueueStatus").mockResolvedValue({ pending: 2, processing: 1, failed: 0, overdue: 1, oldestPendingAt: new Date(), tenSecondGuarantee: false, schedulerCadenceSeconds: 60, schedulerStatus: "external_durable_worker_required", leaseToken: "never-return" } as never);
+
+    const [conversations, queue] = await Promise.all([
+      api.nexareply.workspace.conversations.listPage({ organizationId: scope.organizationId, limit: 30 }),
+      api.nexareply.workspace.operations.queueStatus({ organizationId: scope.organizationId }),
+    ]);
+
+    expect(conversations).toMatchObject({ items: [{ id: 81, customerName: "ლიკა" }], nextCursor: { id: 81 } });
+    expect(listPage).toHaveBeenCalledWith(scope, expect.objectContaining({ limit: 30 }));
+    expect(queue).toMatchObject({ pending: 2, overdue: 1, tenSecondGuarantee: false, schedulerStatus: "external_durable_worker_required" });
+    expect(JSON.stringify({ conversations, queue })).not.toMatch(/payload|lease.?token|secret|credential/i);
+  });
+
   it("returns real onboarding readiness signals and supports owner checklist presentation controls", async () => {
     const api = await caller();
     const onboarding = {

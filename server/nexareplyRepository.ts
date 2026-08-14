@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, asc, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, like, lt, or, sql } from "drizzle-orm";
 import {
   auditEvents,
   backgroundJobs,
@@ -30,6 +30,7 @@ import {
   productAssets,
   productVariants,
   products,
+  rateLimitBuckets,
   tickets,
   usageCounters,
   users,
@@ -592,6 +593,22 @@ export const nexareplyRepository = {
     return db.select().from(conversations).where(and(...conditions)).orderBy(desc(conversations.updatedAt));
   },
 
+  async listConversationPage(scope: WorkspaceScope, input: { query?: string; status?: "open" | "pending" | "closed"; cursor?: { updatedAt: Date; id: number }; limit: number }) {
+    const db = await requireDb();
+    const conditions = [eq(conversations.organizationId, scope.organizationId)];
+    if (input.query?.trim()) {
+      const term = `%${input.query.trim()}%`;
+      conditions.push(or(like(conversations.customerName, term), like(conversations.customerPhone, term), like(conversations.preview, term))!);
+    }
+    if (input.status) conditions.push(eq(conversations.status, input.status));
+    if (input.cursor) conditions.push(or(lt(conversations.updatedAt, input.cursor.updatedAt), and(eq(conversations.updatedAt, input.cursor.updatedAt), lt(conversations.id, input.cursor.id)))!);
+    const rows = await db.select().from(conversations).where(and(...conditions)).orderBy(desc(conversations.updatedAt), desc(conversations.id)).limit(input.limit + 1);
+    const hasMore = rows.length > input.limit;
+    const items = rows.slice(0, input.limit);
+    const tail = items.at(-1);
+    return { items, nextCursor: hasMore && tail ? { updatedAt: tail.updatedAt, id: tail.id } : null };
+  },
+
   async listMessages(scope: WorkspaceScope, conversationId: number) {
     const db = await requireDb();
     return db.select().from(messages).where(and(eq(messages.organizationId, scope.organizationId), eq(messages.conversationId, conversationId))).orderBy(asc(messages.createdAt));
@@ -705,6 +722,84 @@ export const nexareplyRepository = {
   async dueConversationJobs(limit = 20) {
     const db = await requireDb();
     return db.select().from(backgroundJobs).where(and(eq(backgroundJobs.type, "process_conversation"), eq(backgroundJobs.status, "pending"), sql`${backgroundJobs.scheduledAt} <= now()`)).orderBy(asc(backgroundJobs.scheduledAt)).limit(limit);
+  },
+
+  async claimDueConversationJobs(limit: number, leaseToken: string, leaseExpiresAt: Date) {
+    const db = await requireDb();
+    const now = new Date();
+    await db.update(backgroundJobs).set({ status: "pending", leaseToken: null, leaseExpiresAt: null }).where(and(
+      eq(backgroundJobs.type, "process_conversation"),
+      eq(backgroundJobs.status, "processing"),
+      lt(backgroundJobs.leaseExpiresAt, now),
+    ));
+    const candidates = await this.dueConversationJobs(limit);
+    const claimed: typeof candidates = [];
+    for (const candidate of candidates) {
+      await db.update(backgroundJobs).set({ status: "processing", leaseToken, leaseExpiresAt }).where(and(
+        eq(backgroundJobs.id, candidate.id),
+        eq(backgroundJobs.organizationId, candidate.organizationId),
+        eq(backgroundJobs.status, "pending"),
+      ));
+      const job = (await db.select().from(backgroundJobs).where(and(
+        eq(backgroundJobs.id, candidate.id),
+        eq(backgroundJobs.organizationId, candidate.organizationId),
+        eq(backgroundJobs.status, "processing"),
+        eq(backgroundJobs.leaseToken, leaseToken),
+      )).limit(1))[0];
+      if (job) claimed.push(job);
+    }
+    return claimed;
+  },
+
+  async completeLeasedJob(scope: WorkspaceScope, jobId: number, leaseToken: string, status: "completed" | "failed", lastError?: string) {
+    const db = await requireDb();
+    await db.update(backgroundJobs).set({
+      status,
+      attempts: sql`${backgroundJobs.attempts} + 1`,
+      leaseToken: null,
+      leaseExpiresAt: null,
+      ...(status === "completed" ? { processedAt: new Date() } : {}),
+      ...(lastError ? { lastError } : {}),
+    }).where(and(
+      eq(backgroundJobs.id, jobId),
+      eq(backgroundJobs.organizationId, scope.organizationId),
+      eq(backgroundJobs.status, "processing"),
+      eq(backgroundJobs.leaseToken, leaseToken),
+    ));
+  },
+
+  async consumeRateLimit(scope: WorkspaceScope, bucketKey: string, maximumPerMinute: number) {
+    const db = await requireDb();
+    const now = new Date();
+    const windowStartsAt = new Date(Math.floor(now.getTime() / 60_000) * 60_000);
+    await db.execute(sql`INSERT INTO rate_limit_buckets (organizationId, bucketKey, windowStartsAt, hitCount) VALUES (${scope.organizationId}, ${bucketKey}, ${windowStartsAt}, 1) ON DUPLICATE KEY UPDATE hitCount = hitCount + 1`);
+    const bucket = (await db.select().from(rateLimitBuckets).where(and(
+      eq(rateLimitBuckets.organizationId, scope.organizationId),
+      eq(rateLimitBuckets.bucketKey, bucketKey),
+      eq(rateLimitBuckets.windowStartsAt, windowStartsAt),
+    )).limit(1))[0];
+    const hits = bucket?.hitCount ?? maximumPerMinute + 1;
+    return { allowed: hits <= maximumPerMinute, hits, remaining: Math.max(0, maximumPerMinute - hits), windowStartsAt };
+  },
+
+  async getQueueStatus(scope: WorkspaceScope) {
+    const db = await requireDb();
+    const jobs = await db.select().from(backgroundJobs).where(and(eq(backgroundJobs.organizationId, scope.organizationId), eq(backgroundJobs.type, "process_conversation"))).orderBy(asc(backgroundJobs.scheduledAt));
+    const now = Date.now();
+    const pending = jobs.filter((job) => job.status === "pending");
+    const processing = jobs.filter((job) => job.status === "processing");
+    const failed = jobs.filter((job) => job.status === "failed");
+    const oldestPendingAt = pending[0]?.scheduledAt ?? null;
+    return {
+      pending: pending.length,
+      processing: processing.length,
+      failed: failed.length,
+      overdue: pending.filter((job) => job.scheduledAt.getTime() < now).length,
+      oldestPendingAt,
+      tenSecondGuarantee: false,
+      schedulerCadenceSeconds: 60,
+      schedulerStatus: "external_durable_worker_required" as const,
+    };
   },
 
   async markJob(scope: WorkspaceScope, jobId: number, status: "processing" | "completed" | "failed", lastError?: string) {

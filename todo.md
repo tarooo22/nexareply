@@ -151,5 +151,5 @@
 - [x] Implement encrypted per-organization Meta credential vault and Page-selection OAuth flow while preserving the existing Amadeo pilot connection unchanged.
 - [x] Implement server-side plan/trial entitlements for automation, quotas, channels, and member limits without hard-coded platform customer ceilings.
 - [x] Implement a responsive production Inbox slice with conversation list, thread, customer context, evidence-grounded AI drafts, operator takeover/pause, tickets, and handoff states.
-- [ ] Implement/document tenant-aware durable queue readiness, webhook/job idempotency, pagination/indexes, rate limits, monitoring, and a 100-organization load-test benchmark without treating it as a ceiling.
-- [ ] Validate and publish the SaaS/Inbox vertical slice with tenant-isolation, repeated webhook/job dedupe, secret-boundary, TypeScript, test, production-build, responsive QA, and safe Amadeo smoke checks.
+- [x] Implement/document tenant-aware durable queue readiness, webhook/job idempotency, pagination/indexes, rate limits, monitoring, and a 100-organization load-test benchmark without treating it as a ceiling.
+- [x] Validate and publish the SaaS/Inbox vertical slice with tenant-isolation, repeated webhook/job dedupe, secret-boundary, TypeScript, test, production-build, responsive QA, and safe Amadeo smoke checks.

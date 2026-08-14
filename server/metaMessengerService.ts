@@ -384,6 +384,8 @@ export const metaMessengerService = {
     const connection = await nexareplyRepository.getMetaConnection(scope);
     if (!connection?.pageId || connection.status !== "connected") return { delivered: false as const, status: connection?.status ?? "unconfigured", error: "Meta Page is not connected." };
     try {
+      const rateLimit = await nexareplyRepository.consumeRateLimit(scope, "meta_outbound", 120);
+      if (!rateLimit.allowed) return { delivered: false as const, status: "delivery_failed" as const, error: "Meta message rate limit reached. Try again in the next minute." };
       const vault = connection.credentialMode === "tenant_vault" ? await nexareplyRepository.getMetaTokenVault(scope) : null;
       const pageAccessToken = vault ? openMetaPageToken(vault.encryptedPageToken) : config.pageAccessToken;
       if (!pageAccessToken || (vault && vault.pageId !== connection.pageId)) throw new Error("Meta Page credential is unavailable.");
