@@ -93,4 +93,7 @@
 - [x] Add invitation expiry and replay/accepted-token rejection tests.
 - [ ] Diagnose and correct the live Meta webhook GET verification failure without publishing the Meta App.
 - [ ] Confirm managed `META_VERIFY_TOKEN` activation and verify GET challenge/POST signature contracts before instructing a Meta Dashboard retry.
-- [ ] Confirm the selected Amadeo Page ID matches a regenerated `META_PAGE_ACCESS_TOKEN` that includes `pages_manage_metadata` before attempting Page subscription.
+- [x] Confirm the selected Amadeo Page ID matches a regenerated `META_PAGE_ACCESS_TOKEN` that includes `pages_manage_metadata` before attempting Page subscription.
+- [x] Distinguish Meta App role, Page full-control, token-generation path, and permission-scope causes behind the persistent Amadeo `pages_manage_metadata` rejection.
+- [x] Verify the minimal Meta-side remediation with a fresh permission probe before retrying Page subscription.
+- [ ] Configure the remaining managed Meta App ID, App Secret, and OAuth redirect URI before attempting a real Page subscription or outbound delivery.

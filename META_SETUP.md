@@ -46,6 +46,8 @@ NexaReply ავტომატურად ცდილობს არჩე�
 
 თუ Meta აბრუნებს `Requires pages_manage_metadata permission to manage the object`, subscriptions-ის checkbox-ები საკმარისი არ არის. დაადასტურეთ, რომ token-ის გენერაციის Facebook ანგარიშს არჩეულ Page-ზე აქვს **Full control**, რომ `pages_manage_metadata` მზადაა გამოყენებისთვის **App Review → Permissions and Features**-ში, და შემდეგ ზუსტად იმავე Page-ის რიგიდან თავიდან შექმენით Page token. Page ID და token ყოველთვის ერთი Page-ის რიგიდან უნდა მოდიოდეს.
 
+თუ Messenger setup-ის **Generate** ღილაკი კვლავ ქმნის token-ს საჭირო scope-ის გარეშე, გამოიყენეთ Meta-ის **Graph API Explorer** fallback: აირჩიეთ თქვენი App, **Get Token → Get User Access Token**-ში მონიშნეთ `pages_manage_metadata`, `pages_show_list` და `pages_messaging`, შემდეგ ხელახლა **Get Token**-დან აირჩიეთ ზუსტად ის Page, რომლის ID-საც იყენებთ. მხოლოდ ამის შემდეგ შეინახეთ Page token managed `META_PAGE_ACCESS_TOKEN` secret-ში. Meta-ის API Integration Helper სასარგებლოა token-ის Messenger send permission-ის შესამოწმებლად, მაგრამ webhook subscription scope-ს თავად არ ამატებს. [1]
+
 | Workspace მდგომარეობა | მნიშვნელობა | Owner-ის შემდეგი ნაბიჯი |
 |---|---|---|
 | **არ არის კონფიგურირებული** | რომელიმე აუცილებელი managed setting არ არის შევსებული. | დაამატეთ ყველა key და განაახლეთ გვერდი. |
