@@ -49,6 +49,7 @@ export type EntitlementSnapshot = {
   channels: number;
   memberLimit: number;
 };
+export type DraftEvidence = { kind: "catalog" | "knowledge" | "fallback"; label: string; detail?: string };
 
 const DEMO_SLUG = "amadeo-perfume-demo";
 const DEFAULT_SELF_SERVICE_ENTITLEMENTS = [
@@ -596,7 +597,7 @@ export const nexareplyRepository = {
     return db.select().from(messages).where(and(eq(messages.organizationId, scope.organizationId), eq(messages.conversationId, conversationId))).orderBy(asc(messages.createdAt));
   },
 
-  async addMessage(scope: WorkspaceScope, input: { conversationId: number; sender: "customer" | "ai" | "operator" | "system"; body: string; source: "demo" | "manual" | "ai" | "meta" | "system"; inboundEventId?: string; isDraft?: boolean; approvedAt?: Date | null; deliveryStatus?: "received" | "draft" | "queued" | "sent" | "failed" }) {
+  async addMessage(scope: WorkspaceScope, input: { conversationId: number; sender: "customer" | "ai" | "operator" | "system"; body: string; source: "demo" | "manual" | "ai" | "meta" | "system"; inboundEventId?: string; isDraft?: boolean; draftEvidence?: DraftEvidence[]; approvedAt?: Date | null; deliveryStatus?: "received" | "draft" | "queued" | "sent" | "failed" }) {
     const db = await requireDb();
     const deliveryStatus = input.deliveryStatus ?? (input.isDraft ? "draft" : input.sender === "customer" ? "received" : "sent");
     await db.insert(messages).values({ organizationId: scope.organizationId, ...input, deliveryStatus });
@@ -723,6 +724,16 @@ export const nexareplyRepository = {
       eq(conversationParticipants.conversationId, conversationId),
       eq(conversationParticipants.participantType, "customer"),
     )).limit(1))[0];
+  },
+
+  async getConversationContext(scope: WorkspaceScope, conversationId: number) {
+    const [conversation, participant, activeTicket] = await Promise.all([
+      this.getConversation(scope, conversationId),
+      this.getCustomerParticipant(scope, conversationId),
+      this.getActiveTicket(scope, conversationId),
+    ]);
+    if (!conversation) return null;
+    return { conversation, participant, activeTicket };
   },
 
   async listCatalogFacts(scope: WorkspaceScope) {

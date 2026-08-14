@@ -72,6 +72,31 @@ describe("Amadeo workspace response contracts", () => {
     expect(addMessage).toHaveBeenLastCalledWith(scope, expect.objectContaining({ deliveryStatus: "failed" }));
   });
 
+  it("returns sanitized customer context, validated draft evidence and an idempotent operator handoff ticket", async () => {
+    const api = await caller();
+    vi.spyOn(nexareplyRepository, "getConversationContext").mockResolvedValue({
+      conversation: { id: 3, leadId: 6, customerName: "ანა", customerPhone: "+995500000000", status: "pending", humanActive: false, aiState: "needs_human", priority: "high", preview: "ორიგინალია?", preferredProduct: "Rose Amber", lastInboundAt: new Date(), lastMessageAt: new Date(), createdAt: new Date(), updatedAt: new Date(), providerToken: "never-return" },
+      participant: { displayName: "ანა", externalId: "meta:private-psid" },
+      activeTicket: { id: 44, reason: "უცნობი კითხვა", status: "open", priority: "high", createdAt: new Date(), idempotencyKey: "never-return" },
+    } as never);
+    vi.spyOn(nexareplyRepository, "listMessages").mockResolvedValue([{ id: 5, conversationId: 3, sender: "ai", body: "დადასტურებული პასუხი", source: "ai", isDraft: true, draftEvidence: [{ kind: "knowledge", label: "ორიგინალობა", detail: "authenticity" }, { kind: "unsafe", label: "must-not-return" }], deliveryStatus: "draft", approvedAt: null, createdAt: new Date() }] as never);
+    const createTicket = vi.spyOn(nexareplyRepository, "createTicketOnce").mockResolvedValue({ id: 45, status: "open", priority: "high" } as never);
+    const notify = vi.spyOn(nexareplyRepository, "createNotificationOnce").mockResolvedValue({ id: 17 } as never);
+
+    const [context, messages, handoff] = await Promise.all([
+      api.nexareply.workspace.conversations.context({ organizationId: scope.organizationId, conversationId: 3 }),
+      api.nexareply.workspace.conversations.messages({ organizationId: scope.organizationId, conversationId: 3 }),
+      api.nexareply.workspace.conversations.handoff({ organizationId: scope.organizationId, conversationId: 3, reason: "ფასის დადასტურება", priority: "high" }),
+    ]);
+
+    expect(context).toMatchObject({ customer: { displayName: "ანა", hasMessengerIdentity: true }, activeTicket: { id: 44, priority: "high" } });
+    expect(messages[0].draftEvidence).toEqual([{ kind: "knowledge", label: "ორიგინალობა", detail: "authenticity" }]);
+    expect(handoff).toEqual({ id: 45, status: "open", priority: "high" });
+    expect(createTicket).toHaveBeenCalledWith(scope, 3, "ფასის დადასტურება", "high", expect.stringContaining("operator_handoff:3:"));
+    expect(notify).toHaveBeenCalledWith(scope, expect.objectContaining({ relatedConversationId: 3, type: "needs_human" }));
+    expect(JSON.stringify({ context, messages, handoff })).not.toMatch(/external.?id|private.?psid|provider.?token|idempotency.?key|must-not-return/i);
+  });
+
   it("returns real onboarding readiness signals and supports owner checklist presentation controls", async () => {
     const api = await caller();
     const onboarding = {

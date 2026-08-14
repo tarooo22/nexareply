@@ -322,6 +322,7 @@ export const messages = mysqlTable("messages", {
   source: mysqlEnum("source", ["demo", "manual", "ai", "meta", "system"]).notNull().default("demo"),
   inboundEventId: varchar("inboundEventId", { length: 160 }),
   isDraft: boolean("isDraft").notNull().default(false),
+  draftEvidence: json("draftEvidence"),
   deliveryStatus: mysqlEnum("deliveryStatus", ["received", "draft", "queued", "sent", "failed"]).notNull().default("received"),
   approvedAt: timestamp("approvedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

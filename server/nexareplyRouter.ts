@@ -45,7 +45,18 @@ const productAssetUploadInput = z.object({
 
 function knowledgeDto(row: any) { return { id: row.id, title: row.title, body: row.body, category: row.category, active: row.active, createdAt: row.createdAt, updatedAt: row.updatedAt }; }
 function conversationDto(row: any) { return { id: row.id, leadId: row.leadId, customerName: row.customerName, customerPhone: row.customerPhone, status: row.status, humanActive: row.humanActive, aiState: row.aiState, priority: row.priority, preview: row.preview, preferredProduct: row.preferredProduct, lastInboundAt: row.lastInboundAt, lastMessageAt: row.lastMessageAt, createdAt: row.createdAt, updatedAt: row.updatedAt }; }
-function messageDto(row: any) { return { id: row.id, conversationId: row.conversationId, sender: row.sender, body: row.body, source: row.source, isDraft: row.isDraft, deliveryStatus: row.deliveryStatus, approvedAt: row.approvedAt, createdAt: row.createdAt }; }
+function safeDraftEvidence(value: unknown) {
+  if (!Array.isArray(value)) return [] as Array<{ kind: "catalog" | "knowledge" | "fallback"; label: string; detail?: string }>;
+  return value.slice(0, 3).flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const candidate = item as Record<string, unknown>;
+    const kind = candidate.kind;
+    const label = candidate.label;
+    if ((kind !== "catalog" && kind !== "knowledge" && kind !== "fallback") || typeof label !== "string") return [];
+    return [{ kind, label: label.slice(0, 180), ...(typeof candidate.detail === "string" ? { detail: candidate.detail.slice(0, 180) } : {}) }];
+  });
+}
+function messageDto(row: any) { return { id: row.id, conversationId: row.conversationId, sender: row.sender, body: row.body, source: row.source, isDraft: row.isDraft, draftEvidence: safeDraftEvidence(row.draftEvidence), deliveryStatus: row.deliveryStatus, approvedAt: row.approvedAt, createdAt: row.createdAt }; }
 function alertDto(row: any) { return { id: row.id, type: row.type, title: row.title, body: row.body, relatedConversationId: row.relatedConversationId, readAt: row.readAt, createdAt: row.createdAt }; }
 function analyticsDto(row: any) { return { conversationCount: row.conversationCount, aiReplies: row.aiReplies, humanReplies: row.humanReplies, qualifiedLeads: row.qualifiedLeads, handoffs: row.handoffs, draftOrderCount: row.draftOrderCount, responseRate: row.responseRate, dailyVolume: row.dailyVolume.map((day: any) => ({ day: day.day, ai: day.ai, human: day.human })) }; }
 function ticketDto(row: any) { return { ticket: { id: row.ticket.id, conversationId: row.ticket.conversationId, reason: row.ticket.reason, status: row.ticket.status, priority: row.ticket.priority, createdAt: row.ticket.createdAt, updatedAt: row.ticket.updatedAt }, conversation: conversationDto(row.conversation) }; }
@@ -163,9 +174,24 @@ export const nexareplyRouter = router({
     conversations: router({
       list: protectedProcedure.input(organizationInput.extend({ query: z.string().max(160).optional(), status: z.enum(["open", "pending", "closed"]).optional() })).query(async ({ ctx, input }) => (await nexareplyRepository.listConversations(await workspaceScope(ctx.user.id, input.organizationId), input.query, input.status)).map(conversationDto)),
       messages: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive() })).query(async ({ ctx, input }) => (await nexareplyRepository.listMessages(await workspaceScope(ctx.user.id, input.organizationId), input.conversationId)).map(messageDto)),
+      context: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+        const context = await nexareplyRepository.getConversationContext(await workspaceScope(ctx.user.id, input.organizationId), input.conversationId);
+        if (!context) throw new TRPCError({ code: "NOT_FOUND", message: "საუბარი ვერ მოიძებნა." });
+        return {
+          conversation: conversationDto(context.conversation),
+          customer: context.participant ? { displayName: context.participant.displayName, hasMessengerIdentity: Boolean(context.participant.externalId) } : null,
+          activeTicket: context.activeTicket ? { id: context.activeTicket.id, reason: context.activeTicket.reason, status: context.activeTicket.status, priority: context.activeTicket.priority, createdAt: context.activeTicket.createdAt } : null,
+        };
+      }),
       inboundDemo: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive(), body: z.string().min(1).max(2000), inboundEventId: z.string().min(8).max(160) })).mutation(async ({ ctx, input }) => recordInboundDemoMessage(await workspaceScope(ctx.user.id, input.organizationId), input)),
       createDraft: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive() })).mutation(async ({ ctx, input }) => createDatabaseBackedDemoDraft(await workspaceScope(ctx.user.id, input.organizationId), input.conversationId)),
       takeover: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive(), active: z.boolean() })).mutation(async ({ ctx, input }) => nexareplyRepository.setHumanTakeover(await workspaceScope(ctx.user.id, input.organizationId), input.conversationId, input.active)),
+      handoff: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive(), reason: z.string().trim().min(3).max(200), priority: z.enum(["normal", "high"]).default("normal") })).mutation(async ({ ctx, input }) => {
+        const scope = await workspaceScope(ctx.user.id, input.organizationId);
+        const ticket = await nexareplyRepository.createTicketOnce(scope, input.conversationId, input.reason, input.priority, `operator_handoff:${input.conversationId}:${input.reason.toLocaleLowerCase("ka-GE")}`);
+        await nexareplyRepository.createNotificationOnce(scope, { type: "needs_human", title: "Operator handoff გაიხსნა", body: input.reason, relatedConversationId: input.conversationId, dedupeKey: `operator_handoff:${input.conversationId}:${input.reason.toLocaleLowerCase("ka-GE")}` });
+        return { id: ticket.id, status: ticket.status, priority: ticket.priority };
+      }),
       approveDraft: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive(), body: z.string().min(1).max(2000) })).mutation(async ({ ctx, input }) => nexareplyRepository.addMessage(await workspaceScope(ctx.user.id, input.organizationId), { conversationId: input.conversationId, sender: "operator", body: input.body, source: "manual", approvedAt: new Date() })),
       sendReply: protectedProcedure.input(organizationInput.extend({ conversationId: z.number().int().positive(), body: z.string().min(1).max(2000) })).mutation(async ({ ctx, input }) => {
         const scope = await workspaceScope(ctx.user.id, input.organizationId);

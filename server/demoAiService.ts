@@ -35,7 +35,7 @@ export async function createDatabaseBackedDemoDraft(scope: WorkspaceScope, conve
     const { product, variant } = matchedCatalog;
     const availability = variant.stock > 0 ? variant.color : "ამ ეტაპზე მარაგში არ არის";
     const text = `${product.brand} ${product.model} · ${variant.storage}. ${availability}. ფასი: ${variant.priceGel} GEL. ${product.description}`;
-    await nexareplyRepository.addMessage(scope, { conversationId, sender: "ai", body: text, source: "ai", isDraft: true });
+    await nexareplyRepository.addMessage(scope, { conversationId, sender: "ai", body: text, source: "ai", isDraft: true, draftEvidence: [{ kind: "catalog", label: `${product.brand} · ${product.model}`, detail: `${variant.storage} · ${variant.priceGel} GEL` }] });
     await nexareplyRepository.addAudit(scope, "ai.draft_created", "conversation", String(conversationId), { source: "catalog", productId: product.id, variantId: variant.id });
     return { decision: "draft", text, source: "catalog" };
   }
@@ -50,13 +50,13 @@ export async function createDatabaseBackedDemoDraft(scope: WorkspaceScope, conve
     (candidate.category === "policy" && includesAny(question, ["წეს", "პოლიტიკ"]))
   );
   if (fact) {
-    await nexareplyRepository.addMessage(scope, { conversationId, sender: "ai", body: fact.body, source: "ai", isDraft: true });
+    await nexareplyRepository.addMessage(scope, { conversationId, sender: "ai", body: fact.body, source: "ai", isDraft: true, draftEvidence: [{ kind: "knowledge", label: fact.title, detail: fact.category }] });
     await nexareplyRepository.addAudit(scope, "ai.draft_created", "conversation", String(conversationId), { source: "knowledge", factId: fact.id });
     return { decision: "draft", text: fact.body, source: "knowledge" };
   }
 
   const existingHolding = history.some((message) => message.sender === "ai" && message.body === holdingReply);
-  if (!existingHolding) await nexareplyRepository.addMessage(scope, { conversationId, sender: "ai", body: holdingReply, source: "ai", isDraft: true });
+  if (!existingHolding) await nexareplyRepository.addMessage(scope, { conversationId, sender: "ai", body: holdingReply, source: "ai", isDraft: true, draftEvidence: [{ kind: "fallback", label: "დადასტურებული პასუხი ვერ მოიძებნა", detail: "Operator handoff required" }] });
   await nexareplyRepository.createTicketOnce(scope, conversationId, "unknown_question", conversation.priority, `needs_human:${conversationId}`);
   await nexareplyRepository.createNotificationOnce(scope, {
     type: "needs_human",
