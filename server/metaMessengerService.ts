@@ -55,6 +55,10 @@ function readWebhookAppSecret() {
   return process.env.META_APP_SECRET?.trim() || "";
 }
 
+function webhookSignature(rawBody: Buffer, appSecret: string) {
+  return `sha256=${crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex")}`;
+}
+
 function stateHash(state: string) {
   return crypto.createHash("sha256").update(state).digest("hex");
 }
@@ -256,7 +260,7 @@ export const metaMessengerService = {
   verifyWebhookSignature(rawBody: Buffer, signature: string | undefined) {
     const appSecret = readWebhookAppSecret();
     if (!appSecret || !signature?.startsWith("sha256=")) return false;
-    const expected = `sha256=${crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex")}`;
+    const expected = webhookSignature(rawBody, appSecret);
     return safeEqual(signature, expected);
   },
 
