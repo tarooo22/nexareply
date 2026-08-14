@@ -117,7 +117,7 @@
 @layer base {
   * { @apply border-border outline-ring/50; }
   html { scroll-behavior: smooth; }
-  html, body, #root { max-width: 100%; overflow-x: clip; }
+  html, body, #root { max-width: 100%; overflow-x: hidden; }
   body {
     @apply bg-background text-foreground;
     font-family: "Noto Sans Georgian", ui-sans-serif, system-ui, sans-serif;
@@ -136,6 +136,7 @@
 
 @media (min-width: 1280px) {
   .xl\:grid-cols-\[1fr_360px\] { min-width: 0; grid-template-columns: minmax(0, 1fr) 360px; }
+  .grid > .rounded-2xl { min-width: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
