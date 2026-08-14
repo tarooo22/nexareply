@@ -15,7 +15,7 @@ NexaReply-ის მიმდინარე production endpoint-ებია:
 | Facebook Login redirect URI | `https://nexareply-2chxuc4s.manus.space/api/integrations/meta/callback` |
 | Messenger webhook callback URL | `https://nexareply-2chxuc4s.manus.space/api/integrations/meta/webhook` |
 
-Facebook Login-ის **Valid OAuth Redirect URIs** ველში დაამატეთ ზემოთ მოცემული callback URL. OAuth flow ითხოვს Page list-ისა და Messenger-ისთვის საჭირო უფლებებს: `pages_show_list`, `pages_read_engagement`, `pages_manage_metadata` და `pages_messaging`. Page selection ეკრანზე გამოჩნდება მხოლოდ Page-ები, რომლებზეც ავტორიზებულ ანგარიშს აქვს Messenger-თან თავსებადი ამოცანა. Meta-ის message API-ს Page access token და `pages_messaging` უფლება სჭირდება. [2]
+Facebook Login for Business-ის **Settings → Client OAuth Settings → Valid OAuth Redirect URIs** ველში დაამატეთ ზემოთ მოცემული callback URL. ჩართეთ **Client OAuth Login** და **Web OAuth Login**. Meta strict matching-ს იყენებს: protocol, domain და path ზუსტად უნდა დაემთხვეს runtime callback URL-ს. OAuth flow ითხოვს `business_management`, `pages_show_list`, `pages_read_engagement`, `pages_manage_metadata` და `pages_messaging` უფლებებს. Meta-ის message API-ს Page access token და `pages_messaging` უფლება სჭირდება. [2] [3]
 
 ## 2. დაამატეთ managed secrets
 
@@ -52,6 +52,14 @@ NexaReply ავტომატურად ცდილობს არჩე�
 
 Owner workspace-ში **ინტეგრაციები → Meta-თან დაკავშირება** სრულ-გვერდიან Meta authorization redirect-ს იწყებს. NexaReply ინახავს მხოლოდ მოკლეხნიან, owner-scoped opaque session reference-ს და არა Meta provider token-ს. Meta authorization-ის შემდეგ callback ავტომატურად აბრუნებს მომხმარებელს `/app`-ში; ხელმისაწვდომი Page-ები ავტომატურად იტვირთება და owner ირჩევს სასურველ Page-ს. წარმატებისას UI აჩვენებს connected მდგომარეობას; cancel, provider error ან expired session არ ცვლის უკვე დაკავშირებულ Page-ს და აჩვენებს recovery მოქმედებას. Popup-ის დახურვა და ხელით „Page-ების სიის განახლება“ აღარ არის საჭირო.
 
+### Development-mode-ში დადასტურებული რეალური გზა
+
+2026-08-14-ზე Development mode-ში წარმატებით დადასტურდა შემდეგი გზა: owner custom email/password session-ით შედის NexaReply-ში, იწყებს **Meta-თან დაკავშირება** flow-ს, Facebook Login for Business-ში ირჩევს Page-ს და ადასტურებს მოთხოვნილ permissions-ს, შემდეგ callback აბრუნებს მომხმარებელს NexaReply-ში. არჩეული Page persistence-ში ინახება მხოლოდ `pageId`, `pageName` და connection status-ით; OAuth/User/System User provider tokens არც database-ში ინახება და არც UI/tRPC პასუხში ჩნდება.
+
+Facebook Login for Business შეიძლება დააბრუნოს ან ჩვეულებრივი user token, ან client-business-ზე მიბმული System User token. პირველ შემთხვევაში NexaReply კითხულობს `/me/accounts`-ს. თუ ეს სია ცარიელია, server მოკლეხნიანად კითხულობს client-business-ის read-only token path-ს და ხელახლა იღებს მხოლოდ ავტორიზებული Page-ის ID/name metadata-ს. ეს temporary token request დასრულებისთანავე აღარ ინახება; Page subscription მაინც ცალკე server-side managed `META_PAGE_ACCESS_TOKEN`-ით მოწმდება. [4]
+
+რეალურ ტესტში აუცილებელი იყო, რომ ერთი და იგივე Facebook პროფილი: (a) იყოს Meta App-ის Administrator/Developer/Tester, რადგან App Development mode-შია, და (b) არჩეულ Page-ზე ჰქონდეს **Facebook access with Full control**. მხოლოდ task/partial access საკმარისი არ არის Page-ის authorized asset-ად დასაბრუნებლად.
+
 | Workspace მდგომარეობა | მნიშვნელობა | Owner-ის შემდეგი ნაბიჯი |
 |---|---|---|
 | **არ არის კონფიგურირებული** | რომელიმე აუცილებელი managed setting არ არის შევსებული. | დაამატეთ ყველა key და განაახლეთ გვერდი. |
@@ -83,3 +91,7 @@ Production guarantee-ისთვის საჭიროა ცალკე, �
 [1] [Meta Webhooks for Messenger Platform](https://developers.facebook.com/documentation/business-messaging/messenger-platform/webhooks)
 
 [2] [Meta Messenger Platform: Send a Message](https://developers.facebook.com/documentation/business-messaging/messenger-platform/get-started)
+
+[3] [Meta Facebook Login Security: redirect URI matching](https://developers.facebook.com/documentation/facebook-login/security)
+
+[4] [Meta Facebook Login for Business](https://developers.facebook.com/documentation/facebook-login/facebook-login-for-business)
