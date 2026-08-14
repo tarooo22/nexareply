@@ -145,4 +145,4 @@
 - [x] Validate and publish Phase 1 with TypeScript, tests, production build, responsive QA, and a safe Meta connection smoke check.
 - [x] Implement Phase 2: tenant-scoped simple product catalog with secure multi-photo upload and import workflow.
 - [x] Implement Phase 2: approval-first natural-language knowledge-base workflow with tenant and AI-safety boundaries.
-- [ ] Validate and publish Phase 2 with TypeScript, tests, production build, responsive QA, and a safe Meta connection smoke check.
+- [x] Validate and publish Phase 2 with TypeScript, tests, production build, responsive QA, and a safe Meta connection smoke check.
