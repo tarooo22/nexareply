@@ -104,6 +104,9 @@
 - [x] Add tests for owner-scoped OAuth resume, expired/failed sessions, Page selection authorization, and secret non-exposure.
 - [ ] Validate the actual Meta browser OAuth and Page selection flow in Development mode and document the user journey.
 - [ ] Add an owner-only, secret-safe Meta runtime readiness diagnostic to identify missing deployment bindings without exposing credential values.
+- [ ] Correct the Meta Dashboard and managed `META_OAUTH_REDIRECT_URI` to the exact runtime callback path, then add a regression check for the redirect contract.
+- [ ] Diagnose and remediate the real Meta callback Page-list/permission failure after successful OAuth redirect, without exposing provider credentials.
+- [ ] Adjust and test Meta Page candidate eligibility so a Page returned to a full-control owner is not excluded solely by optional Graph task/access-token fields; retain server-side subscription validation.
 - [x] Audit current Manus OAuth user/session dependencies, protected context and identity data before removal.
 - [x] Design password hashing, session-cookie, registration bootstrap, email uniqueness and legacy-user migration rules.
 - [x] Add password credential persistence and custom register/login/logout server procedures without exposing password hashes.

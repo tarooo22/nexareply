@@ -21,7 +21,12 @@ function MetaConnectionPanel({ organizationId, resumeSessionId, resumeResult, on
     !status.data.readiness.pageDelivery ? "Page delivery" : null,
     !status.data.readiness.oauthRedirect ? "OAuth redirect URI" : null,
   ].filter((value): value is string => Boolean(value)) : [];
-  const copy = {
+  const copy = status.data?.configured && statusValue === "unconfigured" ? {
+    title: "დასაკავშირებლად მზადაა",
+    description: "Managed Meta configuration აქტიურია. დაიწყეთ ავტორიზაცია, შემდეგ აირჩიეთ Messenger Page.",
+    icon: CheckCircle2,
+    tone: "border-blue-300/60 bg-blue-50 text-blue-950 dark:bg-blue-950/30 dark:text-blue-100",
+  } : {
     unconfigured: { title: "არ არის კონფიგურირებული", description: "Managed Meta credentials ჯერ არ არის დაყენებული. ამ მდგომარეობაში OAuth, webhook და გაგზავნა გამორთულია.", icon: CircleAlert, tone: "border-amber-300/60 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100" },
     verification_failed: { title: "დადასტურება ვერ შესრულდა", description: "Page-ის webhook subscription ან Meta-ის შემოწმება ვერ დასრულდა. გადაამოწმეთ Meta App-ის უფლებები და ხელახლა დააკავშირეთ გვერდი.", icon: AlertTriangle, tone: "border-red-300/60 bg-red-50 text-red-950 dark:bg-red-950/30 dark:text-red-100" },
     connected: { title: "დაკავშირებულია", description: "Page webhook subscription დამუშავებულია. შემომავალი შეტყობინებები ინახება idempotent provider-event ჩანაწერებით.", icon: CheckCircle2, tone: "border-emerald-300/60 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-100" },

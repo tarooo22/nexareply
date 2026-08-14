@@ -142,8 +142,12 @@ async function exchangeCodeForPages(code: string, config: MetaConfig): Promise<M
   const pagesResponse = await fetch(pagesUrl);
   const pagesPayload = await pagesResponse.json().catch(() => ({})) as { data?: Array<{ id?: string; name?: string; access_token?: string; tasks?: string[] }>; error?: { message?: string } };
   if (!pagesResponse.ok) throw new Error(pagesPayload.error?.message || "Meta Page list could not be loaded.");
+  // `pages_show_list` guarantees a Page list, while Graph can omit `tasks` or a Page
+  // access token for otherwise valid Full-control owners. Keep the callback limited to
+  // safe Page identity metadata; the later server-side subscription request remains the
+  // authoritative permission check before a connection is persisted.
   return (pagesPayload.data ?? [])
-    .filter((page) => page.id && page.name && page.access_token && (page.tasks ?? []).some((task) => ["MESSAGING", "MODERATE", "MANAGE"].includes(task)))
+    .filter((page) => page.id && page.name)
     .map((page) => ({ id: page.id!, name: page.name! }));
 }
 

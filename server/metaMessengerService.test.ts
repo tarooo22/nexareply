@@ -42,6 +42,14 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(metaMessengerService.createOAuthStart(scope)).toMatchObject({ configured: false, authorizationUrl: null, sessionId: null });
   });
 
+  it("uses the managed redirect URI verbatim in the Meta authorization URL", () => {
+    const start = metaMessengerService.createOAuthStart(scope);
+
+    expect(start.configured).toBe(true);
+    expect(new URL(start.authorizationUrl!).searchParams.get("redirect_uri")).toBe(process.env.META_OAUTH_REDIRECT_URI);
+    expect(new URL(start.authorizationUrl!).pathname).toBe("/v24.0/dialog/oauth");
+  });
+
   it("reports only boolean runtime readiness groups when a managed binding is missing", async () => {
     delete process.env.META_PAGE_ACCESS_TOKEN;
     vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue(undefined);
@@ -117,6 +125,22 @@ describe("Meta Messenger managed configuration and webhook security", () => {
       sessionId: "owner-session-1",
     });
     expect(failSession).toHaveBeenCalledWith("owner-session-1", "Authorization was cancelled or denied.");
+  });
+
+  it("keeps a Page returned to a Full-control owner when optional task and Page-token fields are omitted", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaOauthSessionByStateHash").mockResolvedValue({ id: "owner-session-2", status: "pending", expiresAt: new Date(Date.now() + 60_000) } as never);
+    const savePages = vi.spyOn(nexareplyRepository, "setMetaOauthPages").mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "short-lived-owner-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "long-lived-owner-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ id: "page-1", name: "Amadeo" }] }) }));
+
+    await expect(metaMessengerService.handleOAuthCallback({ state: "known-state", code: "authorization-code" })).resolves.toEqual({
+      ok: true,
+      message: "Pages are ready for selection.",
+      sessionId: "owner-session-2",
+    });
+    expect(savePages).toHaveBeenCalledWith("owner-session-2", [{ id: "page-1", name: "Amadeo" }]);
   });
 
   it("requires repository-scoped ownership for Page selection sessions", async () => {
