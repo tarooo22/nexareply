@@ -143,6 +143,24 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(savePages).toHaveBeenCalledWith("owner-session-2", [{ id: "page-1", name: "Amadeo" }]);
   });
 
+  it("uses the temporary Facebook Login for Business token path when a client-business Page list is initially empty", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaOauthSessionByStateHash").mockResolvedValue({ id: "owner-session-3", status: "pending", expiresAt: new Date(Date.now() + 60_000) } as never);
+    const savePages = vi.spyOn(nexareplyRepository, "setMetaOauthPages").mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "short-lived-owner-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "long-lived-owner-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ client_business_id: "business-1" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "temporary-business-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ id: "page-1", name: "Amadeo" }] }) }));
+
+    await expect(metaMessengerService.handleOAuthCallback({ state: "known-state", code: "authorization-code" })).resolves.toMatchObject({
+      ok: true,
+      sessionId: "owner-session-3",
+    });
+    expect(savePages).toHaveBeenCalledWith("owner-session-3", [{ id: "page-1", name: "Amadeo" }]);
+  });
+
   it("requires repository-scoped ownership for Page selection sessions", async () => {
     vi.spyOn(nexareplyRepository, "getMetaOauthSession").mockResolvedValue(undefined);
     await expect(metaMessengerService.selectPage(scope, { sessionId: "session-from-another-owner", pageId: "page-1" })).rejects.toThrow("Meta Page selection session is unavailable.");

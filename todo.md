@@ -107,6 +107,7 @@
 - [ ] Correct the Meta Dashboard and managed `META_OAUTH_REDIRECT_URI` to the exact runtime callback path, then add a regression check for the redirect contract.
 - [ ] Diagnose and remediate the real Meta callback Page-list/permission failure after successful OAuth redirect, without exposing provider credentials.
 - [ ] Adjust and test Meta Page candidate eligibility so a Page returned to a full-control owner is not excluded solely by optional Graph task/access-token fields; retain server-side subscription validation.
+- [ ] Detect Facebook Login for Business System User token responses and retrieve the explicitly authorized Page asset through the supported client-business/token flow without persisting provider tokens.
 - [x] Audit current Manus OAuth user/session dependencies, protected context and identity data before removal.
 - [x] Design password hashing, session-cookie, registration bootstrap, email uniqueness and legacy-user migration rules.
 - [x] Add password credential persistence and custom register/login/logout server procedures without exposing password hashes.

@@ -115,6 +115,47 @@ function appSecretProof(accessToken: string, appSecret: string) {
   return crypto.createHmac("sha256", appSecret).update(accessToken).digest("hex");
 }
 
+type MetaPageListResponse = {
+  data?: Array<{ id?: string; name?: string; access_token?: string; tasks?: string[] }>;
+  error?: { message?: string };
+};
+
+async function loadPageCandidates(accessToken: string, config: MetaConfig): Promise<MetaPageCandidate[]> {
+  const pagesUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/me/accounts`);
+  pagesUrl.searchParams.set("fields", "id,name,access_token,tasks");
+  pagesUrl.searchParams.set("access_token", accessToken);
+  pagesUrl.searchParams.set("appsecret_proof", appSecretProof(accessToken, config.appSecret));
+  const pagesResponse = await fetch(pagesUrl);
+  const pagesPayload = await pagesResponse.json().catch(() => ({})) as MetaPageListResponse;
+  if (!pagesResponse.ok) throw new Error(pagesPayload.error?.message || "Meta Page list could not be loaded.");
+
+  // `pages_show_list` guarantees a Page list, while Graph can omit `tasks` or a Page
+  // access token for otherwise valid Full-control owners. Keep the callback limited to
+  // safe Page identity metadata; the later server-side subscription request remains the
+  // authoritative permission check before a connection is persisted.
+  return (pagesPayload.data ?? [])
+    .filter((page) => page.id && page.name)
+    .map((page) => ({ id: page.id!, name: page.name! }));
+}
+
+async function loadBusinessIntegrationPageToken(accessToken: string, config: MetaConfig): Promise<string | null> {
+  const identityUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/me`);
+  identityUrl.searchParams.set("fields", "client_business_id");
+  identityUrl.searchParams.set("access_token", accessToken);
+  identityUrl.searchParams.set("appsecret_proof", appSecretProof(accessToken, config.appSecret));
+  const identityResponse = await fetch(identityUrl);
+  const identityPayload = await identityResponse.json().catch(() => ({})) as { client_business_id?: string; error?: { message?: string } };
+  if (!identityResponse.ok || !identityPayload.client_business_id) return null;
+
+  const tokenUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${encodeURIComponent(identityPayload.client_business_id)}/system_user_access_tokens`);
+  tokenUrl.searchParams.set("fetch_only", "true");
+  tokenUrl.searchParams.set("access_token", accessToken);
+  tokenUrl.searchParams.set("appsecret_proof", appSecretProof(accessToken, config.appSecret));
+  const tokenResponse = await fetch(tokenUrl);
+  const tokenPayload = await tokenResponse.json().catch(() => ({})) as { access_token?: string };
+  return tokenResponse.ok && tokenPayload.access_token ? tokenPayload.access_token : null;
+}
+
 async function exchangeCodeForPages(code: string, config: MetaConfig): Promise<MetaPageCandidate[]> {
   // The Graph endpoint requires these values as query parameters; build them separately so the authorization code remains server-side.
   const exchangeUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/oauth/access_token`);
@@ -135,20 +176,15 @@ async function exchangeCodeForPages(code: string, config: MetaConfig): Promise<M
   const longLivedPayload = await longLivedResponse.json().catch(() => ({})) as { access_token?: string };
   const ownerToken = longLivedResponse.ok && longLivedPayload.access_token ? longLivedPayload.access_token : exchangePayload.access_token;
 
-  const pagesUrl = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/me/accounts`);
-  pagesUrl.searchParams.set("fields", "id,name,access_token,tasks");
-  pagesUrl.searchParams.set("access_token", ownerToken);
-  pagesUrl.searchParams.set("appsecret_proof", appSecretProof(ownerToken, config.appSecret));
-  const pagesResponse = await fetch(pagesUrl);
-  const pagesPayload = await pagesResponse.json().catch(() => ({})) as { data?: Array<{ id?: string; name?: string; access_token?: string; tasks?: string[] }>; error?: { message?: string } };
-  if (!pagesResponse.ok) throw new Error(pagesPayload.error?.message || "Meta Page list could not be loaded.");
-  // `pages_show_list` guarantees a Page list, while Graph can omit `tasks` or a Page
-  // access token for otherwise valid Full-control owners. Keep the callback limited to
-  // safe Page identity metadata; the later server-side subscription request remains the
-  // authoritative permission check before a connection is persisted.
-  return (pagesPayload.data ?? [])
-    .filter((page) => page.id && page.name)
-    .map((page) => ({ id: page.id!, name: page.name! }));
+  const directCandidates = await loadPageCandidates(ownerToken, config);
+  if (directCandidates.length) return directCandidates;
+
+  // Facebook Login for Business may return a System User token associated with a
+  // client business. When that happens, `/me/accounts` can be empty until the granted
+  // business token is fetched through Meta's read-only token endpoint. The token is
+  // used only within this request and is never stored in the database or returned.
+  const businessToken = await loadBusinessIntegrationPageToken(ownerToken, config);
+  return businessToken ? loadPageCandidates(businessToken, config) : directCandidates;
 }
 
 function eventKey(entryPageId: string, event: NonNullable<NonNullable<MetaWebhookPayload["entry"]>[number]["messaging"]>[number]) {
@@ -181,7 +217,7 @@ export const metaMessengerService = {
     authorizationUrl.searchParams.set("redirect_uri", config.redirectUri);
     authorizationUrl.searchParams.set("state", state);
     authorizationUrl.searchParams.set("response_type", "code");
-    authorizationUrl.searchParams.set("scope", "pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging");
+    authorizationUrl.searchParams.set("scope", "business_management,pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging");
     return { configured: true as const, authorizationUrl: authorizationUrl.toString(), sessionId, stateHash: stateHash(state), expiresAt: new Date(Date.now() + META_OAUTH_TTL_MS) };
   },
 
