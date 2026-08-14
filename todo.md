@@ -91,3 +91,5 @@
 - [x] Document email invitation configuration, fallback behavior, and operational limitations.
 - [x] Add owner-only invitation resend procedure and UI action that cancels the prior token before issuing a replacement.
 - [x] Add invitation expiry and replay/accepted-token rejection tests.
+- [ ] Diagnose and correct the live Meta webhook GET verification failure without publishing the Meta App.
+- [ ] Confirm managed `META_VERIFY_TOKEN` activation and verify GET challenge/POST signature contracts before instructing a Meta Dashboard retry.

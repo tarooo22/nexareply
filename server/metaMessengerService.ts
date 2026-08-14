@@ -47,6 +47,14 @@ function readMetaConfig(): MetaConfig | null {
     : null;
 }
 
+function readWebhookVerifyToken() {
+  return process.env.META_VERIFY_TOKEN?.trim() || "";
+}
+
+function readWebhookAppSecret() {
+  return process.env.META_APP_SECRET?.trim() || "";
+}
+
 function stateHash(state: string) {
   return crypto.createHash("sha256").update(state).digest("hex");
 }
@@ -237,18 +245,18 @@ export const metaMessengerService = {
   },
 
   verifyWebhookChallenge(query: Record<string, unknown>) {
-    const config = readMetaConfig();
+    const verifyToken = readWebhookVerifyToken();
     const mode = typeof query["hub.mode"] === "string" ? query["hub.mode"] : "";
     const token = typeof query["hub.verify_token"] === "string" ? query["hub.verify_token"] : "";
     const challenge = typeof query["hub.challenge"] === "string" ? query["hub.challenge"] : "";
-    if (!config || mode !== "subscribe" || !challenge || !safeEqual(token, config.verifyToken)) return null;
+    if (!verifyToken || mode !== "subscribe" || !challenge || !safeEqual(token, verifyToken)) return null;
     return challenge;
   },
 
   verifyWebhookSignature(rawBody: Buffer, signature: string | undefined) {
-    const config = readMetaConfig();
-    if (!config || !signature?.startsWith("sha256=")) return false;
-    const expected = `sha256=${crypto.createHmac("sha256", config.appSecret).update(rawBody).digest("hex")}`;
+    const appSecret = readWebhookAppSecret();
+    if (!appSecret || !signature?.startsWith("sha256=")) return false;
+    const expected = `sha256=${crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex")}`;
     return safeEqual(signature, expected);
   },
 
