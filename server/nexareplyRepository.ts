@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { and, asc, desc, eq, like, or, sql } from "drizzle-orm";
 import {
   auditEvents,
@@ -11,7 +12,9 @@ import {
   knowledgeSources,
   leads,
   metaConnections,
+  metaOauthPageTokens,
   metaOauthSessions,
+  metaTokenVaults,
   metaWebhookEvents,
   messages,
   notifications,
@@ -19,8 +22,10 @@ import {
   organizationInvitations,
   organizationMemberships,
   organizationOnboarding,
+  organizationSubscriptions,
   organizations,
   plans,
+  planEntitlements,
   productImports,
   productAssets,
   productVariants,
@@ -34,8 +39,28 @@ import { getDb } from "./db";
 export type WorkspaceRole = "owner" | "operator";
 export type WorkspaceScope = { organizationId: number; role: WorkspaceRole; isDemo: boolean; actorUserId?: number };
 export type InvitationStatus = "pending" | "accepted" | "expired" | "cancelled";
+export type EntitlementSnapshot = {
+  planCode: string;
+  planName: string;
+  subscriptionStatus: "trialing" | "active" | "past_due" | "cancelled" | "expired";
+  trialEndsAt: Date | null;
+  aiAutomation: boolean;
+  monthlyAiReplies: number;
+  channels: number;
+  memberLimit: number;
+};
 
 const DEMO_SLUG = "amadeo-perfume-demo";
+const DEFAULT_SELF_SERVICE_ENTITLEMENTS = [
+  { key: "ai_automation", valueType: "boolean" as const, booleanValue: false, limitValue: null },
+  { key: "monthly_ai_replies", valueType: "limit" as const, booleanValue: null, limitValue: 250 },
+  { key: "channels", valueType: "limit" as const, booleanValue: null, limitValue: 1 },
+  { key: "member_limit", valueType: "limit" as const, booleanValue: null, limitValue: 3 },
+];
+
+function createWorkspaceSlug() {
+  return `workspace-${crypto.randomBytes(8).toString("hex")}`;
+}
 
 async function requireDb() {
   const db = await getDb();
@@ -86,15 +111,93 @@ export const nexareplyRepository = {
   async ensureWorkspaceForUser(userId: number, userName?: string | null) {
     const existing = await this.listOrganizationsForUser(userId);
     if (existing.length) return existing;
-    const db = await requireDb();
-    const plan = await this.ensurePlan();
-    const slug = `workspace-${userId}`;
-    await db.insert(organizations).values({ name: `${userName?.trim() || "ჩემი"} Workspace`, slug, mode: "live", planId: plan.id });
-    const organization = (await db.select().from(organizations).where(eq(organizations.slug, slug)).limit(1))[0];
-    if (!organization) throw new Error("Workspace bootstrap failed");
-    await db.insert(organizationMemberships).values({ organizationId: organization.id, userId, role: "owner" });
-    await this.ensureIntegrationStates({ organizationId: organization.id, role: "owner", isDemo: false, actorUserId: userId });
+    await this.createSelfServiceOrganization(userId, { name: `${userName?.trim() || "ჩემი"} Workspace` });
     return this.listOrganizationsForUser(userId);
+  },
+
+  async ensureSelfServicePlan() {
+    const db = await requireDb();
+    const existing = (await db.select().from(plans).where(eq(plans.code, "starter-trial")).limit(1))[0];
+    if (existing) return existing;
+    await db.insert(plans).values({ code: "starter-trial", name: "Starter Trial", monthlyReplyQuota: 250, trialDays: 14, memberLimit: 3, channelLimit: 1, aiAutomationEnabled: false, active: true });
+    return (await db.select().from(plans).where(eq(plans.code, "starter-trial")).limit(1))[0]!;
+  },
+
+  async ensurePlanEntitlements(planId: number) {
+    const db = await requireDb();
+    const existing = await db.select().from(planEntitlements).where(eq(planEntitlements.planId, planId));
+    const known = new Set(existing.map((row) => row.key));
+    const missing = DEFAULT_SELF_SERVICE_ENTITLEMENTS.filter((item) => !known.has(item.key));
+    if (missing.length) await db.insert(planEntitlements).values(missing.map((item) => ({ planId, ...item })));
+    return db.select().from(planEntitlements).where(eq(planEntitlements.planId, planId));
+  },
+
+  async createSelfServiceOrganization(userId: number, input: { name: string }) {
+    const db = await requireDb();
+    const name = input.name.trim();
+    if (name.length < 2 || name.length > 160) throw new Error("Workspace name must be between 2 and 160 characters.");
+    const plan = await this.ensureSelfServicePlan();
+    await this.ensurePlanEntitlements(plan.id);
+    const now = new Date();
+    const trialEndsAt = new Date(now.getTime() + plan.trialDays * 24 * 60 * 60 * 1000);
+    let organizationId: number | undefined;
+    for (let attempt = 0; attempt < 3 && !organizationId; attempt += 1) {
+      const slug = createWorkspaceSlug();
+      try {
+        await db.transaction(async (tx) => {
+          const created = await tx.insert(organizations).values({ name, slug, mode: "live", planId: plan.id });
+          const id = Number((created as unknown as [{ insertId?: number }])[0]?.insertId);
+          if (!Number.isInteger(id) || id <= 0) throw new Error("Workspace bootstrap failed");
+          await tx.insert(organizationMemberships).values({ organizationId: id, userId, role: "owner" });
+          await tx.insert(organizationSubscriptions).values({ organizationId: id, planId: plan.id, status: "trialing", trialEndsAt, currentPeriodStartsAt: now, currentPeriodEndsAt: trialEndsAt });
+          await tx.insert(organizationOnboarding).values({ organizationId: id });
+          await tx.insert(integrationSettings).values((["meta", "openai", "telegram"] as const).map((provider) => ({ organizationId: id, provider, status: "unconfigured" as const })));
+          organizationId = id;
+        });
+      } catch (error) {
+        if (attempt === 2) throw error;
+      }
+    }
+    if (!organizationId) throw new Error("Workspace bootstrap failed");
+    await this.addAudit({ organizationId, role: "owner", isDemo: false, actorUserId: userId }, "organization.created", "organization", String(organizationId), { source: "self_service" });
+    return (await db.select().from(organizations).where(eq(organizations.id, organizationId)).limit(1))[0]!;
+  },
+
+  async getEntitlements(scope: WorkspaceScope): Promise<EntitlementSnapshot> {
+    const db = await requireDb();
+    const organization = await this.getOrganization(scope);
+    if (!organization) throw new Error("Workspace was not found.");
+    let subscription = (await db.select().from(organizationSubscriptions).where(eq(organizationSubscriptions.organizationId, scope.organizationId)).limit(1))[0];
+    let plan = organization.planId ? (await db.select().from(plans).where(eq(plans.id, organization.planId)).limit(1))[0] : undefined;
+    if (!subscription) {
+      plan = plan ?? await this.ensureSelfServicePlan();
+      await this.ensurePlanEntitlements(plan.id);
+      const now = new Date();
+      const endsAt = new Date(now.getTime() + plan.trialDays * 24 * 60 * 60 * 1000);
+      await db.insert(organizationSubscriptions).values({ organizationId: scope.organizationId, planId: plan.id, status: "trialing", trialEndsAt: endsAt, currentPeriodStartsAt: now, currentPeriodEndsAt: endsAt });
+      subscription = (await db.select().from(organizationSubscriptions).where(eq(organizationSubscriptions.organizationId, scope.organizationId)).limit(1))[0]!;
+    }
+    plan = plan ?? (await db.select().from(plans).where(eq(plans.id, subscription.planId)).limit(1))[0];
+    if (!plan) throw new Error("Workspace plan was not found.");
+    const expiredTrial = subscription.status === "trialing" && subscription.trialEndsAt && subscription.trialEndsAt.getTime() <= Date.now();
+    if (expiredTrial) {
+      await db.update(organizationSubscriptions).set({ status: "expired" }).where(eq(organizationSubscriptions.id, subscription.id));
+      subscription = { ...subscription, status: "expired" };
+    }
+    const rows = await this.ensurePlanEntitlements(plan.id);
+    const values = new Map(rows.map((row) => [row.key, row]));
+    const limit = (key: string, fallback: number) => values.get(key)?.limitValue ?? fallback;
+    const enabled = (key: string, fallback: boolean) => values.get(key)?.booleanValue ?? fallback;
+    return {
+      planCode: plan.code,
+      planName: plan.name,
+      subscriptionStatus: subscription.status,
+      trialEndsAt: subscription.trialEndsAt ?? null,
+      aiAutomation: enabled("ai_automation", plan.aiAutomationEnabled),
+      monthlyAiReplies: limit("monthly_ai_replies", plan.monthlyReplyQuota),
+      channels: limit("channels", plan.channelLimit),
+      memberLimit: limit("member_limit", plan.memberLimit),
+    };
   },
 
   async listMemberships(scope: WorkspaceScope) {
@@ -682,12 +785,13 @@ export const nexareplyRepository = {
     return (await db.select().from(metaConnections).where(eq(metaConnections.pageId, pageId)).limit(1))[0];
   },
 
-  async upsertMetaConnection(scope: WorkspaceScope, input: { pageId: string; pageName: string; status: "connected" | "delivery_failed" | "verification_failed" | "disabled" | "unconfigured"; lastError?: string | null; webhookVerifiedAt?: Date | null }) {
+  async upsertMetaConnection(scope: WorkspaceScope, input: { pageId: string; pageName: string; status: "connected" | "delivery_failed" | "verification_failed" | "disabled" | "unconfigured"; credentialMode?: "none" | "pilot_managed" | "tenant_vault"; lastError?: string | null; webhookVerifiedAt?: Date | null }) {
     const db = await requireDb();
     const existing = await this.getMetaConnection(scope);
     const connection = {
       pageId: input.pageId,
       pageName: input.pageName,
+      credentialMode: input.credentialMode ?? existing?.credentialMode ?? "none",
       status: input.status,
       lastError: input.lastError ?? null,
       webhookVerifiedAt: input.webhookVerifiedAt ?? null,
@@ -733,6 +837,41 @@ export const nexareplyRepository = {
   async setMetaOauthPages(sessionId: string, pageCandidates: unknown) {
     const db = await requireDb();
     await db.update(metaOauthSessions).set({ status: "pages_ready", pageCandidates: pageCandidates as Record<string, unknown>, error: null }).where(eq(metaOauthSessions.id, sessionId));
+  },
+
+  async stageMetaOauthPageTokens(scope: WorkspaceScope, sessionId: string, candidates: Array<{ pageId: string; encryptedPageToken: string; expiresAt: Date }>) {
+    const db = await requireDb();
+    await db.delete(metaOauthPageTokens).where(and(eq(metaOauthPageTokens.sessionId, sessionId), eq(metaOauthPageTokens.organizationId, scope.organizationId)));
+    if (candidates.length) await db.insert(metaOauthPageTokens).values(candidates.map((candidate) => ({ sessionId, organizationId: scope.organizationId, ...candidate })));
+  },
+
+  async getStagedMetaPageToken(scope: WorkspaceScope, sessionId: string, pageId: string) {
+    const db = await requireDb();
+    return (await db.select().from(metaOauthPageTokens).where(and(
+      eq(metaOauthPageTokens.sessionId, sessionId),
+      eq(metaOauthPageTokens.organizationId, scope.organizationId),
+      eq(metaOauthPageTokens.pageId, pageId),
+      sql`${metaOauthPageTokens.expiresAt} > now()`,
+    )).limit(1))[0];
+  },
+
+  async clearStagedMetaPageTokens(scope: WorkspaceScope, sessionId: string) {
+    const db = await requireDb();
+    await db.delete(metaOauthPageTokens).where(and(eq(metaOauthPageTokens.sessionId, sessionId), eq(metaOauthPageTokens.organizationId, scope.organizationId)));
+  },
+
+  async upsertMetaTokenVault(scope: WorkspaceScope, input: { pageId: string; encryptedPageToken: string; tokenExpiresAt?: Date | null }) {
+    const db = await requireDb();
+    const existing = await this.getMetaTokenVault(scope);
+    const patch = { pageId: input.pageId, encryptedPageToken: input.encryptedPageToken, keyVersion: 1, tokenExpiresAt: input.tokenExpiresAt ?? null };
+    if (existing) await db.update(metaTokenVaults).set(patch).where(eq(metaTokenVaults.id, existing.id));
+    else await db.insert(metaTokenVaults).values({ organizationId: scope.organizationId, ...patch });
+    await this.addAudit(scope, "meta.token_vault_updated", "meta_token_vault", input.pageId, { keyVersion: 1 });
+  },
+
+  async getMetaTokenVault(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return (await db.select().from(metaTokenVaults).where(eq(metaTokenVaults.organizationId, scope.organizationId)).limit(1))[0];
   },
 
   async failMetaOauthSession(sessionId: string, error: string) {

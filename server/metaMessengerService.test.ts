@@ -6,7 +6,7 @@ import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
 const scope: WorkspaceScope = { organizationId: 7, role: "owner", isDemo: false, actorUserId: 9 };
-const metaEnvKeys = ["META_APP_ID", "META_APP_SECRET", "META_VERIFY_TOKEN", "META_PAGE_ACCESS_TOKEN", "META_OAUTH_REDIRECT_URI"] as const;
+const metaEnvKeys = ["META_APP_ID", "META_APP_SECRET", "META_VERIFY_TOKEN", "META_PAGE_ACCESS_TOKEN", "META_OAUTH_REDIRECT_URI", "META_TOKEN_ENCRYPTION_KEY"] as const;
 const originalEnv = Object.fromEntries(metaEnvKeys.map((key) => [key, process.env[key]]));
 
 function ownerContext(): TrpcContext {
@@ -23,6 +23,7 @@ function configureMeta() {
   process.env.META_VERIFY_TOKEN = "verify-token";
   process.env.META_PAGE_ACCESS_TOKEN = "page-access-token-for-tests";
   process.env.META_OAUTH_REDIRECT_URI = "https://example.test/api/integrations/meta/callback";
+  process.env.META_TOKEN_ENCRYPTION_KEY = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
 }
 
 beforeEach(() => configureMeta());
@@ -141,6 +142,26 @@ describe("Meta Messenger managed configuration and webhook security", () => {
       sessionId: "owner-session-2",
     });
     expect(savePages).toHaveBeenCalledWith("owner-session-2", [{ id: "page-1", name: "Amadeo" }]);
+  });
+
+  it("stages an OAuth Page credential as organization-scoped ciphertext and never returns its plaintext", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaOauthSessionByStateHash").mockResolvedValue({ id: "vault-session", organizationId: 7, userId: 9, status: "pending", expiresAt: new Date(Date.now() + 60_000) } as never);
+    const stage = vi.spyOn(nexareplyRepository, "stageMetaOauthPageTokens").mockResolvedValue(undefined);
+    vi.spyOn(nexareplyRepository, "setMetaOauthPages").mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "short-lived-owner-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "long-lived-owner-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ id: "page-vault", name: "Vault Page", access_token: "plaintext-page-token" }] }) }));
+
+    const response = await metaMessengerService.handleOAuthCallback({ state: "vault-state", code: "authorization-code" });
+
+    expect(response).toEqual({ ok: true, message: "Pages are ready for selection.", sessionId: "vault-session" });
+    expect(JSON.stringify(response)).not.toContain("plaintext-page-token");
+    expect(stage).toHaveBeenCalledWith(
+      { organizationId: 7, role: "owner", isDemo: false, actorUserId: 9 },
+      "vault-session",
+      [expect.objectContaining({ pageId: "page-vault", encryptedPageToken: expect.not.stringContaining("plaintext-page-token") })],
+    );
   });
 
   it("uses the temporary Facebook Login for Business token path when a client-business Page list is initially empty", async () => {

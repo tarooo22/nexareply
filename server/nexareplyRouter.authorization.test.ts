@@ -14,6 +14,23 @@ function operatorContext(): TrpcContext {
 afterEach(() => vi.restoreAllMocks());
 
 describe("owner-only NexaReply router procedures", () => {
+  it("creates a self-service organization only for the authenticated user", async () => {
+    const created = { id: 77, name: "New Workspace", slug: "workspace-safe", mode: "live" };
+    const create = vi.spyOn(nexareplyRepository, "createSelfServiceOrganization").mockResolvedValue(created as never);
+    const caller = appRouter.createCaller(operatorContext());
+    await expect(caller.nexareply.workspace.createOrganization({ name: "New Workspace" })).resolves.toMatchObject({ id: 77, name: "New Workspace" });
+    expect(create).toHaveBeenCalledWith(42, { name: "New Workspace" });
+  });
+
+  it("returns entitlements only after resolving the caller's organization membership scope", async () => {
+    const memberScope = { organizationId: 1, role: "operator" as const, isDemo: false, actorUserId: 42 };
+    const snapshot = { planCode: "starter-trial", subscriptionStatus: "trialing", aiAutomation: false, channels: 1, memberLimit: 2 };
+    vi.spyOn(nexareplyRepository, "getWorkspaceScope").mockResolvedValue(memberScope);
+    const entitlements = vi.spyOn(nexareplyRepository, "getEntitlements").mockResolvedValue(snapshot as never);
+    await expect(appRouter.createCaller(operatorContext()).nexareply.workspace.entitlements({ organizationId: 1 })).resolves.toEqual(snapshot);
+    expect(entitlements).toHaveBeenCalledWith(memberScope);
+  });
+
   it("forbids an operator before integration or membership data is read", async () => {
     vi.spyOn(nexareplyRepository, "getWorkspaceScope").mockResolvedValue({ organizationId: 1, role: "operator", isDemo: false, actorUserId: 42 });
     const caller = appRouter.createCaller(operatorContext());

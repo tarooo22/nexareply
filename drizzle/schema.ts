@@ -31,8 +31,25 @@ export const plans = mysqlTable("plans", {
   code: varchar("code", { length: 64 }).notNull(),
   name: varchar("name", { length: 120 }).notNull(),
   monthlyReplyQuota: int("monthlyReplyQuota").notNull().default(5000),
+  trialDays: int("trialDays").notNull().default(14),
+  memberLimit: int("memberLimit").notNull().default(3),
+  channelLimit: int("channelLimit").notNull().default(1),
+  aiAutomationEnabled: boolean("aiAutomationEnabled").notNull().default(false),
+  active: boolean("active").notNull().default(true),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => [uniqueIndex("plans_code_unique").on(table.code)]);
+
+/** Dynamic plan-level limits and feature flags; values constrain one tenant, never platform tenant count. */
+export const planEntitlements = mysqlTable("plan_entitlements", {
+  id: int("id").autoincrement().primaryKey(),
+  planId: int("planId").notNull(),
+  key: varchar("key", { length: 80 }).notNull(),
+  valueType: mysqlEnum("valueType", ["boolean", "limit"]).notNull(),
+  booleanValue: boolean("booleanValue"),
+  limitValue: int("limitValue"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [uniqueIndex("plan_entitlements_plan_key_unique").on(table.planId, table.key)]);
 
 export const organizations = mysqlTable("organizations", {
   id: int("id").autoincrement().primaryKey(),
@@ -48,6 +65,22 @@ export const organizations = mysqlTable("organizations", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => [uniqueIndex("organizations_slug_unique").on(table.slug), index("organizations_plan_idx").on(table.planId)]);
+
+/** One current entitlement lifecycle per organization; billing providers can be added without weakening server-side guards. */
+export const organizationSubscriptions = mysqlTable("organization_subscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  planId: int("planId").notNull(),
+  status: mysqlEnum("status", ["trialing", "active", "past_due", "cancelled", "expired"]).notNull().default("trialing"),
+  trialEndsAt: timestamp("trialEndsAt"),
+  currentPeriodStartsAt: timestamp("currentPeriodStartsAt").notNull(),
+  currentPeriodEndsAt: timestamp("currentPeriodEndsAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("organization_subscriptions_org_unique").on(table.organizationId),
+  index("organization_subscriptions_status_end_idx").on(table.status, table.currentPeriodEndsAt),
+]);
 
 /**
  * Owner-controlled onboarding presentation state. Completion is derived from
@@ -396,6 +429,7 @@ export const metaConnections = mysqlTable("meta_connections", {
   organizationId: int("organizationId").notNull(),
   pageId: varchar("pageId", { length: 80 }),
   pageName: varchar("pageName", { length: 255 }),
+  credentialMode: mysqlEnum("credentialMode", ["none", "pilot_managed", "tenant_vault"]).notNull().default("none"),
   status: mysqlEnum("status", ["unconfigured", "verification_failed", "connected", "delivery_failed", "disabled"]).notNull().default("unconfigured"),
   lastError: text("lastError"),
   webhookVerifiedAt: timestamp("webhookVerifiedAt"),
@@ -404,6 +438,18 @@ export const metaConnections = mysqlTable("meta_connections", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => [uniqueIndex("meta_connections_org_unique").on(table.organizationId), uniqueIndex("meta_connections_page_unique").on(table.pageId)]);
+
+/** AES-GCM ciphertext only. Plain provider tokens must never be persisted or returned from a DTO. */
+export const metaTokenVaults = mysqlTable("meta_token_vaults", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  pageId: varchar("pageId", { length: 80 }).notNull(),
+  encryptedPageToken: text("encryptedPageToken").notNull(),
+  keyVersion: int("keyVersion").notNull().default(1),
+  tokenExpiresAt: timestamp("tokenExpiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [uniqueIndex("meta_token_vault_org_unique").on(table.organizationId), uniqueIndex("meta_token_vault_page_unique").on(table.pageId)]);
 
 /** Short-lived OAuth handoff. It stores only selected-account Page IDs/names, never provider tokens. */
 export const metaOauthSessions = mysqlTable("meta_oauth_sessions", {
@@ -418,6 +464,17 @@ export const metaOauthSessions = mysqlTable("meta_oauth_sessions", {
   completedAt: timestamp("completedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => [uniqueIndex("meta_oauth_state_unique").on(table.stateHash), index("meta_oauth_owner_expiry_idx").on(table.organizationId, table.userId, table.expiresAt)]);
+
+/** Short-lived encrypted Page tokens staged between OAuth callback and an owner Page selection. */
+export const metaOauthPageTokens = mysqlTable("meta_oauth_page_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: varchar("sessionId", { length: 64 }).notNull(),
+  organizationId: int("organizationId").notNull(),
+  pageId: varchar("pageId", { length: 80 }).notNull(),
+  encryptedPageToken: text("encryptedPageToken").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [uniqueIndex("meta_oauth_page_token_session_page_unique").on(table.sessionId, table.pageId), index("meta_oauth_page_token_expiry_idx").on(table.expiresAt)]);
 
 /** Incoming Meta webhook events provide provider-level idempotency before conversation mutation. */
 export const metaWebhookEvents = mysqlTable("meta_webhook_events", {

@@ -12,7 +12,8 @@ vi.mock("@/lib/trpc", () => ({
     nexareply: {
       workspace: {
         bootstrap: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isSuccess: false }) },
-        organizations: { useQuery: () => ({ isLoading: false, data: [{ organization: { id: 17, name: "Persisted Org" }, membership: { role: scenario.role } }] }) },
+        organizations: { useQuery: () => ({ isLoading: false, refetch: vi.fn(), data: [{ organization: { id: 17, name: "Persisted Org" }, membership: { role: scenario.role } }] }) },
+        createOrganization: { useMutation: () => ({ mutate: vi.fn(), isPending: false, error: null }) },
         overview: { useQuery: () => ({ isLoading: false, data: { conversationCount: 0, ticketCount: 0, qualifiedLeadCount: 0 } }) },
         onboarding: {
           state: { useQuery: () => ({ isLoading: false, data: { dismissedAt: new Date(), assistantReviewedAt: null, workerReady: false, completedCount: 0, totalActionableSteps: 5, steps: { channelConnected: false, knowledgeReady: false, catalogReady: false, assistantReviewed: false, testDraftReady: false } } }) },
@@ -38,6 +39,7 @@ describe("AuthenticatedWorkspace persisted membership integration", () => {
     expect(ownerMarkup).toContain("Persisted Org");
     expect(ownerMarkup).toContain("წევრები");
     expect(ownerMarkup).toContain("Workspace მენიუს გახსნა");
+    expect(ownerMarkup).toContain("ახალი workspace");
     expect(ownerMarkup).toContain("lg:hidden");
     expect(ownerMarkup).toContain("lg:flex");
     expect(operatorMarkup).toContain("Persisted Org");

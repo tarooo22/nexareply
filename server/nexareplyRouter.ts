@@ -5,6 +5,7 @@ import { createDatabaseBackedDemoDraft, recordInboundDemoMessage } from "./demoA
 import { processDueConversationJobs } from "./jobWorker";
 import { commitCatalogImport, exportSalesCsv, previewCatalogImport } from "./importExportService";
 import { metaMessengerService } from "./metaMessengerService";
+import { requireEntitlement, requireMemberCapacity } from "./entitlementService";
 import { invitationService } from "./invitationService";
 import { knowledgeDraftService } from "./knowledgeDraftService";
 import { nexareplyRepository, type WorkspaceScope } from "./nexareplyRepository";
@@ -123,6 +124,8 @@ export const nexareplyRouter = router({
   workspace: router({
     organizations: protectedProcedure.query(async ({ ctx }) => nexareplyRepository.listOrganizationsForUser(ctx.user.id)),
     bootstrap: protectedProcedure.mutation(async ({ ctx }) => nexareplyRepository.ensureWorkspaceForUser(ctx.user.id, ctx.user.name)),
+    createOrganization: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(160) })).mutation(async ({ ctx, input }) => nexareplyRepository.createSelfServiceOrganization(ctx.user.id, input)),
+    entitlements: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.getEntitlements(await workspaceScope(ctx.user.id, input.organizationId))),
     overview: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.getOverview(await workspaceScope(ctx.user.id, input.organizationId))),
     onboarding: router({
       state: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.getOnboarding(await workspaceScope(ctx.user.id, input.organizationId))),
@@ -210,7 +213,11 @@ export const nexareplyRouter = router({
       integrationStates: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listIntegrationStates(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
       meta: router({
         status: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => metaMessengerService.getConnectionStatus(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
-        startOAuth: protectedProcedure.input(organizationInput).mutation(async ({ ctx, input }) => metaMessengerService.persistOAuthStart(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
+        startOAuth: protectedProcedure.input(organizationInput).mutation(async ({ ctx, input }) => {
+          const scope = await workspaceScope(ctx.user.id, input.organizationId, "owner");
+          await requireEntitlement(scope, "meta_channel");
+          return metaMessengerService.persistOAuthStart(scope);
+        }),
         oauthPages: protectedProcedure.input(organizationInput.extend({ sessionId: z.string().min(16).max(64) })).query(async ({ ctx, input }) => metaMessengerService.getOAuthPages(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.sessionId)),
         selectPage: protectedProcedure.input(organizationInput.extend({ sessionId: z.string().min(16).max(64), pageId: z.string().min(1).max(80) })).mutation(async ({ ctx, input }) => metaMessengerService.selectPage(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input)),
         sendText: protectedProcedure.input(organizationInput.extend({ psid: z.string().min(1).max(160), text: z.string().min(1).max(2000) })).mutation(async ({ ctx, input }) => metaMessengerService.sendText(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input)),
@@ -221,7 +228,11 @@ export const nexareplyRouter = router({
       setRole: protectedProcedure.input(organizationInput.extend({ userId: z.number().int().positive(), role: z.enum(["owner", "operator"]) })).mutation(async ({ ctx, input }) => nexareplyRepository.setMembershipRole(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.userId, input.role)),
       invitations: router({
         list: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => invitationService.listForOwner(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
-        create: protectedProcedure.input(organizationInput.extend({ email: z.string().trim().email().max(320) })).mutation(async ({ ctx, input }) => invitationService.create(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.email)),
+        create: protectedProcedure.input(organizationInput.extend({ email: z.string().trim().email().max(320) })).mutation(async ({ ctx, input }) => {
+          const scope = await workspaceScope(ctx.user.id, input.organizationId, "owner");
+          await requireMemberCapacity(scope);
+          return invitationService.create(scope, input.email);
+        }),
         cancel: protectedProcedure.input(organizationInput.extend({ invitationId: z.number().int().positive() })).mutation(async ({ ctx, input }) => invitationService.cancel(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.invitationId)),
         resend: protectedProcedure.input(organizationInput.extend({ invitationId: z.number().int().positive() })).mutation(async ({ ctx, input }) => invitationService.resend(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.invitationId)),
       }),

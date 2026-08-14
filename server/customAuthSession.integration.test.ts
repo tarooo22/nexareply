@@ -101,6 +101,8 @@ describe("custom password session integration", () => {
     const context = await contextForPasswordSession();
     const ownerScope = { organizationId: 1, role: "owner" as const, isDemo: false, actorUserId: 44 };
     vi.spyOn(nexareplyRepository, "getWorkspaceScope").mockResolvedValue(ownerScope);
+    vi.spyOn(nexareplyRepository, "getEntitlements").mockResolvedValue({ planCode: "starter-trial", planName: "Starter Trial", subscriptionStatus: "trialing", trialEndsAt: new Date(Date.now() + 60_000), aiAutomation: false, monthlyAiReplies: 250, channels: 1, memberLimit: 2 } as never);
+    vi.spyOn(nexareplyRepository, "listMemberships").mockResolvedValue([{ userId: 44, role: "owner" }] as never);
     vi.spyOn(invitationService, "listForOwner").mockResolvedValue([] as never);
     vi.spyOn(invitationService, "create").mockResolvedValue({ id: 7, state: "sent" } as never);
     vi.spyOn(invitationService, "cancel").mockResolvedValue({ id: 7, state: "cancelled" } as never);
