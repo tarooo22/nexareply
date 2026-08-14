@@ -42,6 +42,19 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(metaMessengerService.createOAuthStart(scope)).toMatchObject({ configured: false, authorizationUrl: null, sessionId: null });
   });
 
+  it("reports only boolean runtime readiness groups when a managed binding is missing", async () => {
+    delete process.env.META_PAGE_ACCESS_TOKEN;
+    vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue(undefined);
+
+    const response = await metaMessengerService.getConnectionStatus(scope);
+
+    expect(response).toMatchObject({
+      configured: false,
+      readiness: { appCredentials: true, webhookChallenge: true, pageDelivery: false, oauthRedirect: true },
+    });
+    expect(JSON.stringify(response)).not.toMatch(/app-secret|verify-token|page-access-token|accessToken|encrypted/i);
+  });
+
   it("validates the webhook challenge and X-Hub-Signature-256 over the raw request body", () => {
     const rawBody = Buffer.from('{"object":"page","entry":[]}');
     const signature = `sha256=${crypto.createHmac("sha256", process.env.META_APP_SECRET!).update(rawBody).digest("hex")}`;
@@ -120,7 +133,7 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     vi.spyOn(nexareplyRepository, "getWorkspaceScope").mockResolvedValue(scope);
     vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue({ pageId: "page-1", pageName: "TechZone", status: "connected", lastError: null, webhookVerifiedAt: null, lastInboundAt: null, lastDeliveryAt: null, accessToken: "must-not-leak", encryptedBlob: "must-not-leak" } as never);
     const response = await appRouter.createCaller(ownerContext()).nexareply.workspace.owner.meta.status({ organizationId: 7 });
-    expect(response).toMatchObject({ configured: true, status: "connected", page: { id: "page-1", name: "TechZone" } });
+    expect(response).toMatchObject({ configured: true, readiness: { appCredentials: true, webhookChallenge: true, pageDelivery: true, oauthRedirect: true }, status: "connected", page: { id: "page-1", name: "TechZone" } });
     expect(JSON.stringify(response)).not.toMatch(/accessToken|encrypted|secret|must-not-leak/i);
   });
 

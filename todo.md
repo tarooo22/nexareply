@@ -103,6 +103,7 @@
 - [x] Replace popup/manual refresh with an accessible guided workspace flow for authorization, Page selection, recovery, and connected status.
 - [x] Add tests for owner-scoped OAuth resume, expired/failed sessions, Page selection authorization, and secret non-exposure.
 - [ ] Validate the actual Meta browser OAuth and Page selection flow in Development mode and document the user journey.
+- [ ] Add an owner-only, secret-safe Meta runtime readiness diagnostic to identify missing deployment bindings without exposing credential values.
 - [x] Audit current Manus OAuth user/session dependencies, protected context and identity data before removal.
 - [x] Design password hashing, session-cookie, registration bootstrap, email uniqueness and legacy-user migration rules.
 - [x] Add password credential persistence and custom register/login/logout server procedures without exposing password hashes.

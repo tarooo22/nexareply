@@ -15,6 +15,13 @@ type MetaConfig = {
   redirectUri: string;
 };
 
+type MetaRuntimeReadiness = {
+  appCredentials: boolean;
+  webhookChallenge: boolean;
+  pageDelivery: boolean;
+  oauthRedirect: boolean;
+};
+
 type MetaPageCandidate = {
   id: string;
   name: string;
@@ -45,6 +52,20 @@ function readMetaConfig(): MetaConfig | null {
   return appId && appSecret && verifyToken && pageAccessToken && redirectUri
     ? { appId, appSecret, verifyToken, pageAccessToken, redirectUri }
     : null;
+}
+
+function readMetaRuntimeReadiness(): MetaRuntimeReadiness {
+  const appId = process.env.META_APP_ID?.trim() || "";
+  const appSecret = process.env.META_APP_SECRET?.trim() || "";
+  const verifyToken = process.env.META_VERIFY_TOKEN?.trim() || "";
+  const pageAccessToken = process.env.META_PAGE_ACCESS_TOKEN?.trim() || "";
+  const redirectUri = process.env.META_OAUTH_REDIRECT_URI?.trim() || "";
+  return {
+    appCredentials: Boolean(appId && appSecret),
+    webhookChallenge: Boolean(verifyToken),
+    pageDelivery: Boolean(pageAccessToken),
+    oauthRedirect: Boolean(redirectUri),
+  };
 }
 
 function readWebhookVerifyToken() {
@@ -236,9 +257,11 @@ export const metaMessengerService = {
 
   async getConnectionStatus(scope: WorkspaceScope) {
     const connection = await nexareplyRepository.getMetaConnection(scope);
-    if (!readMetaConfig()) return { configured: false as const, status: "unconfigured" as const, page: null, lastError: null, webhookVerifiedAt: null, lastInboundAt: null, lastDeliveryAt: null };
+    const readiness = readMetaRuntimeReadiness();
+    if (!readMetaConfig()) return { configured: false as const, readiness, status: "unconfigured" as const, page: null, lastError: null, webhookVerifiedAt: null, lastInboundAt: null, lastDeliveryAt: null };
     return {
       configured: true as const,
+      readiness,
       status: connection?.status ?? "unconfigured",
       page: connection?.pageId && connection.pageName ? { id: connection.pageId, name: connection.pageName } : null,
       lastError: connection?.lastError ?? null,
