@@ -142,7 +142,7 @@
 - [x] Read every Markdown file in the attached NexaReply brief archive and reconcile Phase 1–2 requirements with the live codebase before implementation.
 - [x] Audit and document the current code, schema, Amadeo Meta connection path, credential boundaries, worker setup, and Phase 1–2 implementation risks.
 - [x] Implement Phase 1: an original responsive workspace design system plus actionable overview and onboarding flows without copying any reference brand or copy.
-- [ ] Validate and publish Phase 1 with TypeScript, tests, production build, responsive QA, and a safe Meta connection smoke check.
+- [x] Validate and publish Phase 1 with TypeScript, tests, production build, responsive QA, and a safe Meta connection smoke check.
 - [ ] Implement Phase 2: tenant-scoped simple product catalog with secure multi-photo upload and import workflow.
 - [ ] Implement Phase 2: approval-first natural-language knowledge-base workflow with tenant and AI-safety boundaries.
 - [ ] Validate and publish Phase 2 with TypeScript, tests, production build, responsive QA, and a safe Meta connection smoke check.

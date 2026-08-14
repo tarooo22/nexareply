@@ -37,6 +37,9 @@ describe("AuthenticatedWorkspace persisted membership integration", () => {
     const operatorMarkup = renderToStaticMarkup(createElement(ThemeProvider, { defaultTheme: "light" }, createElement(AuthenticatedWorkspace)));
     expect(ownerMarkup).toContain("Persisted Org");
     expect(ownerMarkup).toContain("წევრები");
+    expect(ownerMarkup).toContain("Workspace მენიუს გახსნა");
+    expect(ownerMarkup).toContain("lg:hidden");
+    expect(ownerMarkup).toContain("lg:flex");
     expect(operatorMarkup).toContain("Persisted Org");
     expect(operatorMarkup).not.toContain("წევრები");
     expect(operatorMarkup).not.toContain("ინტეგრაციები");

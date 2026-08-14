@@ -46,3 +46,13 @@ Each phase requires TypeScript, Vitest, production build, desktop/mobile visual 
 `pnpm check && pnpm test && pnpm build` passed before any Phase 1–2 implementation work. Vitest reported 57 passed tests with 2 managed-secret integration tests intentionally skipped. The production build passed with an existing large-chunk advisory for the analytics/vendor output.
 
 A browser-based, read-safe visit to the live authenticated Amadeo overview confirmed the owner workspace loads and reports **Amadeo ⋅ ამადეო** as connected with webhook subscription status. The workspace rendered 2 persistent conversations, 1 open ticket, 1 AI reply, and 1 human reply at the time of the check. No OAuth action, credential operation, Page selection, connection mutation, or outbound message was triggered.
+
+## Phase 1 release QA note
+
+The initial post-checkpoint browser visit continued to serve the prior protected-workspace bundle, while still confirming the existing Amadeo connection and operational counts are intact. No Phase 1 visual QA conclusion is recorded until the new deployed bundle is observed; no integration action was performed during this check.
+
+A subsequent hard refresh still rendered the prior navigation/header/overview presentation. This is treated as deployment propagation or cached-runtime verification work, not as an invitation to alter the live Meta connection. The browser confirmed the same safe connected Page status and did not perform a mutation.
+
+Once the publish pipeline completed, live desktop QA confirmed the new Phase 1 experience: grouped workspace rail, Light/Dark/System selector, owner-ready onboarding checklist with real 2/5 completion state, actionable links to catalog/knowledge/assistant/inbox, and the explicit worker-readiness limitation. The same read-only screen continued to show **Amadeo ⋅ ამადეო** with a connected webhook subscription. No OAuth, Page-selection, credential, checklist mutation, or outbound-message action was used during QA.
+
+The mobile layout is regression-tested for a separate `lg:hidden` drawer trigger and `lg:flex` desktop rail, and a managed-preview 375px capture confirmed the protected entry state has no viewport overflow. The preview environment is not authenticated as the live Amadeo owner, so direct 375px inspection of the owner-only drawer was not performed there; the published authenticated workspace was visually verified on desktop and the mobile shell contract is covered by rendering tests.
