@@ -97,9 +97,21 @@
 - [x] Distinguish Meta App role, Page full-control, token-generation path, and permission-scope causes behind the persistent Amadeo `pages_manage_metadata` rejection.
 - [x] Verify the minimal Meta-side remediation with a fresh permission probe before retrying Page subscription.
 - [x] Configure the remaining managed Meta App ID, App Secret, and OAuth redirect URI before attempting a real Page subscription or outbound delivery.
-- [ ] Assess current Meta OAuth popup/manual-refresh flow and identify all return/resume friction points.
-- [ ] Design redirect-based Meta authorization return with owner-scoped durable OAuth session recovery and no provider-token exposure.
-- [ ] Implement callback handoff and owner recovery API that returns only safe OAuth session/page metadata.
-- [ ] Replace popup/manual refresh with an accessible guided workspace flow for authorization, Page selection, recovery, and connected status.
-- [ ] Add tests for owner-scoped OAuth resume, expired/failed sessions, Page selection authorization, and secret non-exposure.
+- [x] Assess current Meta OAuth popup/manual-refresh flow and identify all return/resume friction points.
+- [x] Design redirect-based Meta authorization return with owner-scoped durable OAuth session recovery and no provider-token exposure.
+- [x] Implement callback handoff and owner recovery API that returns only safe OAuth session/page metadata.
+- [x] Replace popup/manual refresh with an accessible guided workspace flow for authorization, Page selection, recovery, and connected status.
+- [x] Add tests for owner-scoped OAuth resume, expired/failed sessions, Page selection authorization, and secret non-exposure.
 - [ ] Validate the actual Meta browser OAuth and Page selection flow in Development mode and document the user journey.
+- [x] Audit current Manus OAuth user/session dependencies, protected context and identity data before removal.
+- [x] Design password hashing, session-cookie, registration bootstrap, email uniqueness and legacy-user migration rules.
+- [x] Add password credential persistence and custom register/login/logout server procedures without exposing password hashes.
+- [x] Replace Manus OAuth login UI with accessible Georgian registration and login forms; remove Manus OAuth UI and route dependencies.
+- [x] Preserve protected workspace, memberships, Meta OAuth Page connection and invitation acceptance under custom sessions.
+- [x] Add tests for registration, duplicate email, login failure/success, logout, protected access, roles and credential secret boundaries.
+- [x] Document the custom authentication security model, migration behavior and environment requirements.
+- [x] Add integration tests that exercise valid and invalid `app_session_id` cookies against protected tRPC context/procedures to prove authenticated access and denial paths under custom sessions.
+- [x] Add custom-session-backed authorization tests for owner versus operator access to protected membership and integration procedures.
+- [x] Add integration coverage showing invitation acceptance and Meta owner Page status/Page-selection flows work while authenticated through the custom email/password session.
+- [x] Add custom-session-backed tests for workspace membership listing and role mutation, proving owner access and operator denial after resolving `app_session_id`.
+- [x] Add custom-session-backed coverage for owner invitation management procedures to preserve list/create/cancel/resend access under password sessions.

@@ -1,16 +1,17 @@
 # NexaReply
 
-NexaReply is a Georgian-first Messenger sales workspace. It combines a public marketing site, an unauthenticated sanitized TechZone Demo Mode, and an OAuth-protected organization workspace foundation.
+NexaReply is a Georgian-first Messenger sales workspace. It combines a public marketing site, an unauthenticated sanitized TechZone Demo Mode, and a first-party email/password-protected organization workspace foundation.
 
 ## Current architecture
 
-The application uses React, Express, tRPC, Drizzle, MySQL/TiDB, and Manus OAuth. Business data access is contained in `server/nexareplyRepository.ts`; UI components call typed tRPC procedures and never construct SQL or access secrets.
+The application uses React, Express, tRPC, Drizzle, and MySQL/TiDB. Users register and sign in with a NexaReply email/password account; password material is salted and scrypt-hashed server-side, and an httpOnly signed session cookie carries only a numeric user identifier. Manus OAuth is not used for product authentication. Business data access is contained in `server/nexareplyRepository.ts`; UI components call typed tRPC procedures and never construct SQL or access secrets.
 
 | Route | Purpose | Access |
 |---|---|---|
 | `/` | Georgian public marketing site | Public |
 | `/demo` | Sanitized TechZone Demo with persistent demo data | Public, limited to the demo organization |
-| `/app` | OAuth-protected workspace bootstrap and organization membership | Authenticated users only |
+| `/auth` | NexaReply registration and login | Public |
+| `/app` | Password-session-protected workspace bootstrap and organization membership | Authenticated users only |
 
 ## Persistent capabilities
 
@@ -32,7 +33,7 @@ Use `pnpm drizzle-kit generate` to create a migration after changing `drizzle/sc
 
 ## Security and tenancy
 
-Authenticated workspace procedures resolve the user membership server-side. Owner-only actions include integration state access, organization membership listing and role changes, and catalog import commits. Operators are rejected by the server before those procedures read or modify protected data.
+Authenticated workspace procedures resolve the user membership server-side. Registration assigns an opaque local identity, stores only a salted password hash, and does not expose password hashes or internal identity values through tRPC. Existing legacy identity rows are retained but cannot be silently claimed by a newly registered email. Owner-only actions include integration state access, organization membership listing and role changes, and catalog import commits. Operators are rejected by the server before those procedures read or modify protected data.
 
 Public Demo Mode does not accept an arbitrary organization identifier: it resolves only to the sanitized TechZone demo organization. Secrets remain server-side and must be supplied through managed configuration rather than committed environment files.
 

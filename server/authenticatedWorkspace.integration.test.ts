@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 const scenario = vi.hoisted(() => ({ role: "owner" as "owner" | "operator" }));
 
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: 7, name: "Test User" }, loading: false, isAuthenticated: true }) }));
-vi.mock("@/const", () => ({ startLogin: vi.fn() }));
 vi.mock("wouter", () => ({ Link: ({ children }: { children: unknown }) => children }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {

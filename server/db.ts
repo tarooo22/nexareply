@@ -89,4 +89,49 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getUserByNormalizedEmail(normalizedEmail: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.normalizedEmail, normalizedEmail)).limit(1);
+  return result[0];
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result[0];
+}
+
+export async function createPasswordUser(input: { name: string; email: string; normalizedEmail: string; passwordHash: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable.");
+  const openId = `local_${crypto.randomUUID()}`;
+  await db.insert(users).values({
+    openId,
+    name: input.name,
+    email: input.email,
+    normalizedEmail: input.normalizedEmail,
+    passwordHash: input.passwordHash,
+    loginMethod: "password",
+    lastSignedIn: new Date(),
+  });
+  const user = await getUserByNormalizedEmail(input.normalizedEmail);
+  if (!user) throw new Error("Account could not be created.");
+  return user;
+}
+
+export async function updateLastSignedIn(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, userId));
+}
+
 // TODO: add feature queries here as your schema grows.
