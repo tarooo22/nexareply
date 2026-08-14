@@ -49,6 +49,21 @@ export const organizations = mysqlTable("organizations", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => [uniqueIndex("organizations_slug_unique").on(table.slug), index("organizations_plan_idx").on(table.planId)]);
 
+/**
+ * Owner-controlled onboarding presentation state. Completion is derived from
+ * tenant-scoped operational records; only review/dismiss interaction timestamps
+ * are persisted here so a checklist can be restarted without altering live data.
+ */
+export const organizationOnboarding = mysqlTable("organization_onboarding", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  assistantReviewedAt: timestamp("assistantReviewedAt"),
+  dismissedAt: timestamp("dismissedAt"),
+  dismissedByUserId: int("dismissedByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [uniqueIndex("organization_onboarding_org_unique").on(table.organizationId)]);
+
 export const organizationMemberships = mysqlTable("organization_memberships", {
   id: int("id").autoincrement().primaryKey(),
   organizationId: int("organizationId").notNull(),

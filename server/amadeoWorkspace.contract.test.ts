@@ -70,4 +70,26 @@ describe("Amadeo workspace response contracts", () => {
     await expect(api.nexareply.workspace.conversations.sendReply({ organizationId: scope.organizationId, conversationId: 3, body: "ვერ გაეგზავნა." })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(addMessage).toHaveBeenLastCalledWith(scope, expect.objectContaining({ deliveryStatus: "failed" }));
   });
+
+  it("returns real onboarding readiness signals and supports owner checklist presentation controls", async () => {
+    const api = await caller();
+    const onboarding = {
+      dismissedAt: null,
+      assistantReviewedAt: null,
+      workerReady: false,
+      completedCount: 2,
+      totalActionableSteps: 5,
+      steps: { channelConnected: true, knowledgeReady: true, catalogReady: false, assistantReviewed: false, testDraftReady: false },
+    };
+    vi.spyOn(nexareplyRepository, "getOnboarding").mockResolvedValue(onboarding as never);
+    const dismiss = vi.spyOn(nexareplyRepository, "dismissOnboarding").mockResolvedValue({ ...onboarding, dismissedAt: new Date() } as never);
+    const restart = vi.spyOn(nexareplyRepository, "restartOnboarding").mockResolvedValue(onboarding as never);
+
+    await expect(api.nexareply.workspace.onboarding.state({ organizationId: scope.organizationId })).resolves.toEqual(onboarding);
+    await api.nexareply.workspace.onboarding.dismiss({ organizationId: scope.organizationId });
+    await api.nexareply.workspace.onboarding.restart({ organizationId: scope.organizationId });
+
+    expect(dismiss).toHaveBeenCalledWith(scope);
+    expect(restart).toHaveBeenCalledWith(scope);
+  });
 });

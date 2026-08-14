@@ -47,7 +47,7 @@ function App() {
     <ErrorBoundary>
       <PageMetadata />
       <ThemeProvider
-        defaultTheme="dark"
+        defaultTheme="light"
         switchable
       >
         <TooltipProvider>

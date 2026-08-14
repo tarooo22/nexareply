@@ -57,6 +57,13 @@
       "when": 1786718747127,
       "tag": "0007_sad_orphan",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1786724671731,
+      "tag": "0008_hard_puppet_master",
+      "breakpoints": true
     }
   ]
 }

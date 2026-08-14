@@ -112,6 +112,11 @@ export const nexareplyRouter = router({
     organizations: protectedProcedure.query(async ({ ctx }) => nexareplyRepository.listOrganizationsForUser(ctx.user.id)),
     bootstrap: protectedProcedure.mutation(async ({ ctx }) => nexareplyRepository.ensureWorkspaceForUser(ctx.user.id, ctx.user.name)),
     overview: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.getOverview(await workspaceScope(ctx.user.id, input.organizationId))),
+    onboarding: router({
+      state: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.getOnboarding(await workspaceScope(ctx.user.id, input.organizationId))),
+      dismiss: protectedProcedure.input(organizationInput).mutation(async ({ ctx, input }) => nexareplyRepository.dismissOnboarding(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
+      restart: protectedProcedure.input(organizationInput).mutation(async ({ ctx, input }) => nexareplyRepository.restartOnboarding(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
+    }),
     products: router({
       list: protectedProcedure.input(organizationInput.extend({ query: z.string().max(160).optional(), includeArchived: z.boolean().optional() })).query(async ({ ctx, input }) => nexareplyRepository.listProducts(await workspaceScope(ctx.user.id, input.organizationId), input.query, input.includeArchived)),
       create: protectedProcedure.input(organizationInput.extend({ product: productInput })).mutation(async ({ ctx, input }) => nexareplyRepository.createProduct(await workspaceScope(ctx.user.id, input.organizationId), input.product)),

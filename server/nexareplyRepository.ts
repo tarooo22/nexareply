@@ -16,6 +16,7 @@ import {
   orderItems,
   organizationInvitations,
   organizationMemberships,
+  organizationOnboarding,
   organizations,
   plans,
   productImports,
@@ -37,6 +38,16 @@ async function requireDb() {
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable");
   return db;
+}
+
+async function ensureOnboarding(scope: WorkspaceScope) {
+  const db = await requireDb();
+  const existing = (await db.select().from(organizationOnboarding)
+    .where(eq(organizationOnboarding.organizationId, scope.organizationId)).limit(1))[0];
+  if (existing) return existing;
+  await db.insert(organizationOnboarding).values({ organizationId: scope.organizationId });
+  return (await db.select().from(organizationOnboarding)
+    .where(eq(organizationOnboarding.organizationId, scope.organizationId)).limit(1))[0]!;
 }
 
 export const nexareplyRepository = {
@@ -196,6 +207,53 @@ export const nexareplyRepository = {
       qualifiedLeadCount: Number(leadCount?.value ?? 0),
       usage,
     };
+  },
+
+  async getOnboarding(scope: WorkspaceScope) {
+    const db = await requireDb();
+    const onboarding = await ensureOnboarding(scope);
+    const count = async (table: any, where: any) => {
+      const [row] = await db.select({ value: sql<number>`count(*)` }).from(table).where(where);
+      return Number(row?.value ?? 0);
+    };
+    const [connection] = await db.select().from(metaConnections)
+      .where(eq(metaConnections.organizationId, scope.organizationId)).limit(1);
+    const productCount = await count(products, and(eq(products.organizationId, scope.organizationId), eq(products.active, true)));
+    const knowledgeCount = await count(knowledgeFacts, and(eq(knowledgeFacts.organizationId, scope.organizationId), eq(knowledgeFacts.active, true)));
+    const testDraftCount = await count(messages, and(eq(messages.organizationId, scope.organizationId), eq(messages.isDraft, true)));
+    const completedCount = [connection?.status === "connected", knowledgeCount > 0, productCount > 0, Boolean(onboarding.assistantReviewedAt), testDraftCount > 0].filter(Boolean).length;
+    return {
+      dismissedAt: onboarding.dismissedAt,
+      assistantReviewedAt: onboarding.assistantReviewedAt,
+      workerReady: false as const,
+      completedCount,
+      totalActionableSteps: 5,
+      steps: {
+        channelConnected: connection?.status === "connected",
+        knowledgeReady: knowledgeCount > 0,
+        catalogReady: productCount > 0,
+        assistantReviewed: Boolean(onboarding.assistantReviewedAt),
+        testDraftReady: testDraftCount > 0,
+      },
+    };
+  },
+
+  async dismissOnboarding(scope: WorkspaceScope) {
+    const db = await requireDb();
+    await ensureOnboarding(scope);
+    await db.update(organizationOnboarding).set({ dismissedAt: new Date(), dismissedByUserId: scope.actorUserId ?? null })
+      .where(eq(organizationOnboarding.organizationId, scope.organizationId));
+    await this.addAudit(scope, "onboarding.dismissed", "organization_onboarding", String(scope.organizationId), {});
+    return this.getOnboarding(scope);
+  },
+
+  async restartOnboarding(scope: WorkspaceScope) {
+    const db = await requireDb();
+    await ensureOnboarding(scope);
+    await db.update(organizationOnboarding).set({ dismissedAt: null, dismissedByUserId: null })
+      .where(eq(organizationOnboarding.organizationId, scope.organizationId));
+    await this.addAudit(scope, "onboarding.restarted", "organization_onboarding", String(scope.organizationId), {});
+    return this.getOnboarding(scope);
   },
 
   async getAnalytics(scope: WorkspaceScope) {
@@ -473,6 +531,8 @@ export const nexareplyRepository = {
     if (input.replyLength !== undefined) patch.replyLength = input.replyLength;
     if (input.fallbackMessage !== undefined) patch.fallbackMessage = input.fallbackMessage;
     if (Object.keys(patch).length) await db.update(organizations).set(patch).where(eq(organizations.id, scope.organizationId));
+    await ensureOnboarding(scope);
+    await db.update(organizationOnboarding).set({ assistantReviewedAt: new Date() }).where(eq(organizationOnboarding.organizationId, scope.organizationId));
     await this.addAudit(scope, "assistant.settings_updated", "organization", String(scope.organizationId), { changed: Object.keys(patch) });
     return this.getOrganization(scope);
   },

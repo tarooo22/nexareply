@@ -13,10 +13,12 @@ describe("WorkspaceNav membership-driven UI", () => {
     expect(operatorMarkup).not.toContain("ინტეგრაციები");
   });
 
-  it("keeps the complete mobile navigation reachable without forcing a tall sidebar", () => {
+  it("uses a grouped vertical navigation that can be placed inside an accessible mobile drawer", () => {
     const markup = renderToStaticMarkup(createElement(WorkspaceNav, { role: "owner", active: "overview", onSelect: () => undefined }));
-    expect(markup).toContain("overflow-x-auto");
-    expect(markup).toContain("lg:grid");
-    expect(markup).toContain("shrink-0");
+    expect(markup).toContain("სამუშაო სივრცე");
+    expect(markup).toContain("ცოდნა და გაყიდვები");
+    expect(markup).toContain("ავტომატიზაცია");
+    expect(markup).toContain('aria-current="page"');
+    expect(markup).not.toContain("overflow-x-auto");
   });
 });
