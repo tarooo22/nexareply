@@ -174,17 +174,17 @@ export const metaMessengerService = {
     if (!session || session.status !== "pending" || session.expiresAt.getTime() < Date.now()) return { ok: false as const, message: "Meta authorization request has expired or is invalid." };
     if (input.error || !input.code) {
       await nexareplyRepository.failMetaOauthSession(session.id, "Authorization was cancelled or denied.");
-      return { ok: false as const, message: "Meta authorization was cancelled or denied." };
+      return { ok: false as const, message: "Meta authorization was cancelled or denied.", sessionId: session.id };
     }
     try {
       const pages = await exchangeCodeForPages(input.code, config);
       if (!pages.length) throw new Error("No Messenger-eligible Page was returned for this account.");
       await nexareplyRepository.setMetaOauthPages(session.id, pages);
-      return { ok: true as const, message: "Pages are ready for selection." };
+      return { ok: true as const, message: "Pages are ready for selection.", sessionId: session.id };
     } catch (error) {
       const message = safeProviderError(error);
       await nexareplyRepository.failMetaOauthSession(session.id, message);
-      return { ok: false as const, message: "Meta authorization could not be completed." };
+      return { ok: false as const, message: "Meta authorization could not be completed.", sessionId: session.id };
     }
   },
 

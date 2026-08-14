@@ -2,9 +2,12 @@ import type { Express, Request, Response } from "express";
 import express from "express";
 import { metaMessengerService } from "./metaMessengerService";
 
-function callbackPage(message: string, success: boolean) {
-  const title = success ? "Meta authorization completed" : "Meta authorization could not be completed";
-  return `<!doctype html><html lang="ka"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title></head><body style="font-family:system-ui,sans-serif;padding:3rem;max-width:40rem;margin:auto"><h1>${title}</h1><p>${message}</p><p>დაბრუნდით NexaReply workspace-ში და განაახლეთ Page-ების სია.</p></body></html>`;
+function callbackPage(input: { success: boolean; sessionId?: string }) {
+  const fragment = input.sessionId
+    ? `meta_oauth_session=${encodeURIComponent(input.sessionId)}&meta_oauth_result=${input.success ? "ready" : "failed"}`
+    : `meta_oauth_result=${input.success ? "ready" : "failed"}`;
+  const title = input.success ? "Meta authorization completed" : "Meta authorization could not be completed";
+  return `<!doctype html><html lang="ka"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title></head><body style="font-family:system-ui,sans-serif;padding:3rem;max-width:40rem;margin:auto"><h1>${title}</h1><p>${input.success ? "ავტორიზაცია დასრულდა. Page-ის არჩევაზე გადაგამისამართებთ." : "ავტორიზაცია ვერ დასრულდა. Workspace-ში დაბრუნების შემდეგ ნახავთ უსაფრთხო recovery მდგომარეობას."}</p><p>თუ გადამისამართება ავტომატურად არ შესრულდა, გახსენით <a href="/app#${fragment}">NexaReply Workspace</a>.</p><script>window.location.replace("/app#${fragment}");</script></body></html>`;
 }
 
 export function registerMetaMessengerRoutes(app: Express) {
@@ -35,6 +38,6 @@ export function registerMetaMessengerRoutes(app: Express) {
       error: typeof req.query.error === "string" ? req.query.error : undefined,
     };
     const result = await metaMessengerService.handleOAuthCallback(input);
-    return res.status(result.ok ? 200 : 400).type("html").send(callbackPage(result.message, result.ok));
+    return res.status(result.ok ? 200 : 400).type("html").send(callbackPage({ success: result.ok, sessionId: result.sessionId }));
   });
 }

@@ -94,6 +94,18 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(JSON.stringify(response)).not.toMatch(/accessToken|must-not-leak|secret|encrypted/i);
   });
 
+  it("returns only the durable session reference after a cancelled callback so the owner workspace can resume safely", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaOauthSessionByStateHash").mockResolvedValue({ id: "owner-session-1", status: "pending", expiresAt: new Date(Date.now() + 60_000) } as never);
+    const failSession = vi.spyOn(nexareplyRepository, "failMetaOauthSession").mockResolvedValue(undefined);
+
+    await expect(metaMessengerService.handleOAuthCallback({ state: "known-state", error: "access_denied" })).resolves.toEqual({
+      ok: false,
+      message: "Meta authorization was cancelled or denied.",
+      sessionId: "owner-session-1",
+    });
+    expect(failSession).toHaveBeenCalledWith("owner-session-1", "Authorization was cancelled or denied.");
+  });
+
   it("requires repository-scoped ownership for Page selection sessions", async () => {
     vi.spyOn(nexareplyRepository, "getMetaOauthSession").mockResolvedValue(undefined);
     await expect(metaMessengerService.selectPage(scope, { sessionId: "session-from-another-owner", pageId: "page-1" })).rejects.toThrow("Meta Page selection session is unavailable.");

@@ -97,3 +97,9 @@
 - [x] Distinguish Meta App role, Page full-control, token-generation path, and permission-scope causes behind the persistent Amadeo `pages_manage_metadata` rejection.
 - [x] Verify the minimal Meta-side remediation with a fresh permission probe before retrying Page subscription.
 - [x] Configure the remaining managed Meta App ID, App Secret, and OAuth redirect URI before attempting a real Page subscription or outbound delivery.
+- [ ] Assess current Meta OAuth popup/manual-refresh flow and identify all return/resume friction points.
+- [ ] Design redirect-based Meta authorization return with owner-scoped durable OAuth session recovery and no provider-token exposure.
+- [ ] Implement callback handoff and owner recovery API that returns only safe OAuth session/page metadata.
+- [ ] Replace popup/manual refresh with an accessible guided workspace flow for authorization, Page selection, recovery, and connected status.
+- [ ] Add tests for owner-scoped OAuth resume, expired/failed sessions, Page selection authorization, and secret non-exposure.
+- [ ] Validate the actual Meta browser OAuth and Page selection flow in Development mode and document the user journey.

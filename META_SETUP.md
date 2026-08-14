@@ -48,6 +48,10 @@ NexaReply ავტომატურად ცდილობს არჩე�
 
 თუ Messenger setup-ის **Generate** ღილაკი კვლავ ქმნის token-ს საჭირო scope-ის გარეშე, გამოიყენეთ Meta-ის **Graph API Explorer** fallback: აირჩიეთ თქვენი App, **Get Token → Get User Access Token**-ში მონიშნეთ `pages_manage_metadata`, `pages_show_list` და `pages_messaging`, შემდეგ ხელახლა **Get Token**-დან აირჩიეთ ზუსტად ის Page, რომლის ID-საც იყენებთ. მხოლოდ ამის შემდეგ შეინახეთ Page token managed `META_PAGE_ACCESS_TOKEN` secret-ში. Meta-ის API Integration Helper სასარგებლოა token-ის Messenger send permission-ის შესამოწმებლად, მაგრამ webhook subscription scope-ს თავად არ ამატებს. [1]
 
+## Owner-ის OAuth და Page არჩევის გზა
+
+Owner workspace-ში **ინტეგრაციები → Meta-თან დაკავშირება** სრულ-გვერდიან Meta authorization redirect-ს იწყებს. NexaReply ინახავს მხოლოდ მოკლეხნიან, owner-scoped opaque session reference-ს და არა Meta provider token-ს. Meta authorization-ის შემდეგ callback ავტომატურად აბრუნებს მომხმარებელს `/app`-ში; ხელმისაწვდომი Page-ები ავტომატურად იტვირთება და owner ირჩევს სასურველ Page-ს. წარმატებისას UI აჩვენებს connected მდგომარეობას; cancel, provider error ან expired session არ ცვლის უკვე დაკავშირებულ Page-ს და აჩვენებს recovery მოქმედებას. Popup-ის დახურვა და ხელით „Page-ების სიის განახლება“ აღარ არის საჭირო.
+
 | Workspace მდგომარეობა | მნიშვნელობა | Owner-ის შემდეგი ნაბიჯი |
 |---|---|---|
 | **არ არის კონფიგურირებული** | რომელიმე აუცილებელი managed setting არ არის შევსებული. | დაამატეთ ყველა key და განაახლეთ გვერდი. |
