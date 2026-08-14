@@ -8,6 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { registerMetaMessengerRoutes } from "../metaMessengerRoutes";
+import { registerWorkerTriggerRoutes } from "../workerTriggerRoutes";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -33,6 +34,8 @@ async function startServer() {
   const server = createServer(app);
   // Meta validates the HMAC against the original body; this route must run before the global JSON parser.
   registerMetaMessengerRoutes(app);
+  // A platform-owned scheduler authenticates with a managed server secret before it can claim queue work.
+  registerWorkerTriggerRoutes(app);
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));

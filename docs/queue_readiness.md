@@ -17,7 +17,7 @@ NexaReply uses tenant-scoped records in `background_jobs`. A Messenger inbound e
 
 > The database job contract exists, but a **10-second production guarantee is not enabled by the current hosting configuration**.
 
-The platform scheduler has a minimum cadence of 60 seconds, so it can provide periodic recovery but cannot meet a ten-second SLA. In-process timers are deliberately not used because they do not survive deployment lifecycle or scale-out. A true ten-second guarantee requires a separately deployed durable queue trigger/worker that claims due jobs within ten seconds and calls the existing `processDueConversationJobs` contract. That worker must preserve lease-token completion, retry/backoff, and tenant context; it must not read provider credentials directly.
+The platform scheduler has a minimum cadence of 60 seconds, so it can provide periodic recovery but cannot meet a ten-second SLA. In-process timers are deliberately not used because they do not survive deployment lifecycle or scale-out. A protected server-side trigger now exists at `POST /api/internal/worker/process-conversations`; a separately deployed durable queue trigger/worker must call it at a cadence of five seconds or less to claim due jobs within ten seconds. That worker must preserve the existing lease-token completion, retry/backoff, and tenant context; it must not read provider credentials directly. See [durable_worker_trigger.md](durable_worker_trigger.md) for the managed-secret contract.
 
 ## 100-organization readiness benchmark
 

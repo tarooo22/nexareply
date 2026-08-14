@@ -30,6 +30,10 @@ const productInput = z.object({
   installment: z.string().min(1).max(120).optional(),
   warranty: z.string().min(1).max(120).optional(),
 }).refine((product) => Boolean(product.fragranceName || product.model), { message: "სურნელის დასახელება სავალდებულოა." });
+// Zod v4 keeps refinements on a ZodObject, but intentionally disallows calling
+// `.partial()` on that refined object. Rebuild an unrefined patch schema from
+// its field shape so a product can still be updated one field at a time.
+const productPatchInput = z.object(productInput.shape).partial();
 const mappingInput = z.object({
   brand: z.string(), fragranceName: z.string().optional(), model: z.string().optional(), sku: z.string(), priceGel: z.string(), stock: z.string(),
   availability: z.string().optional(), color: z.string().optional(), volume: z.string().optional(), storage: z.string().optional(), description: z.string().optional(), installment: z.string().optional(), warranty: z.string().optional(),
@@ -60,7 +64,7 @@ function messageDto(row: any) { return { id: row.id, conversationId: row.convers
 function alertDto(row: any) { return { id: row.id, type: row.type, title: row.title, body: row.body, relatedConversationId: row.relatedConversationId, readAt: row.readAt, createdAt: row.createdAt }; }
 function analyticsDto(row: any) { return { conversationCount: row.conversationCount, aiReplies: row.aiReplies, humanReplies: row.humanReplies, qualifiedLeads: row.qualifiedLeads, handoffs: row.handoffs, draftOrderCount: row.draftOrderCount, responseRate: row.responseRate, dailyVolume: row.dailyVolume.map((day: any) => ({ day: day.day, ai: day.ai, human: day.human })) }; }
 function ticketDto(row: any) { return { ticket: { id: row.ticket.id, conversationId: row.ticket.conversationId, reason: row.ticket.reason, status: row.ticket.status, priority: row.ticket.priority, createdAt: row.ticket.createdAt, updatedAt: row.ticket.updatedAt }, conversation: conversationDto(row.conversation) }; }
-function assistantDto(row: any) { return { aiPersona: row?.aiPersona ?? "Amadeo-ის სუნამოების კონსულტანტი", aiTone: row?.aiTone ?? "თბილი და კონკრეტული", replyLength: row?.replyLength ?? "normal", fallbackMessage: row?.fallbackMessage ?? "ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით." }; }
+function assistantDto(row: any) { return { aiPersona: row?.aiPersona ?? "მეგობრული გაყიდვების კონსულტანტი", aiTone: row?.aiTone ?? "თბილი და კონკრეტული", replyLength: row?.replyLength ?? "normal", fallbackMessage: row?.fallbackMessage ?? "ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით." }; }
 async function productAssetDto(row: any) { const { url } = await storageGet(row.storageKey); return { id: row.id, productId: row.productId, url, mimeType: row.mimeType, byteSize: row.byteSize, width: row.width, height: row.height, altText: row.altText, sortOrder: row.sortOrder, isPrimary: row.isPrimary, createdAt: row.createdAt, updatedAt: row.updatedAt }; }
 function knowledgeDraftDto(row: any) { return { source: { id: row.source.id, title: row.source.title, originalText: row.source.originalText, status: row.source.status, version: row.source.version, createdAt: row.source.createdAt, updatedAt: row.source.updatedAt }, draft: { id: row.draft.id, sourceId: row.draft.sourceId, title: row.draft.title, body: row.draft.body, category: row.draft.category, confidence: row.draft.confidence, status: row.draft.status, approvedKnowledgeFactId: row.draft.approvedKnowledgeFactId, reviewedAt: row.draft.reviewedAt, createdAt: row.draft.createdAt, updatedAt: row.draft.updatedAt } }; }
 
@@ -82,7 +86,7 @@ function makeDataRouter(getScope: (input: { organizationId?: number }) => Promis
     products: router({
       list: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), query: z.string().max(160).optional(), includeArchived: z.boolean().optional() }).optional()).query(async ({ input }) => nexareplyRepository.listProducts(await getScope(input ?? {}), input?.query, input?.includeArchived)),
       create: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), product: productInput })).mutation(async ({ input }) => nexareplyRepository.createProduct(await getScope(input), input.product)),
-      update: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), productId: z.number().int().positive(), patch: productInput.partial() })).mutation(async ({ input }) => nexareplyRepository.updateProduct(await getScope(input), input.productId, input.patch)),
+      update: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), productId: z.number().int().positive(), patch: productPatchInput })).mutation(async ({ input }) => nexareplyRepository.updateProduct(await getScope(input), input.productId, input.patch)),
       archive: publicProcedure.input(z.object({ organizationId: z.number().int().positive().optional(), productId: z.number().int().positive() })).mutation(async ({ input }) => nexareplyRepository.archiveProduct(await getScope(input), input.productId)),
     }),
     knowledge: router({
@@ -146,7 +150,7 @@ export const nexareplyRouter = router({
     products: router({
       list: protectedProcedure.input(organizationInput.extend({ query: z.string().max(160).optional(), includeArchived: z.boolean().optional() })).query(async ({ ctx, input }) => nexareplyRepository.listProducts(await workspaceScope(ctx.user.id, input.organizationId), input.query, input.includeArchived)),
       create: protectedProcedure.input(organizationInput.extend({ product: productInput })).mutation(async ({ ctx, input }) => nexareplyRepository.createProduct(await workspaceScope(ctx.user.id, input.organizationId), input.product)),
-      update: protectedProcedure.input(organizationInput.extend({ productId: z.number().int().positive(), patch: productInput.partial() })).mutation(async ({ ctx, input }) => nexareplyRepository.updateProduct(await workspaceScope(ctx.user.id, input.organizationId), input.productId, input.patch)),
+      update: protectedProcedure.input(organizationInput.extend({ productId: z.number().int().positive(), patch: productPatchInput })).mutation(async ({ ctx, input }) => nexareplyRepository.updateProduct(await workspaceScope(ctx.user.id, input.organizationId), input.productId, input.patch)),
       archive: protectedProcedure.input(organizationInput.extend({ productId: z.number().int().positive() })).mutation(async ({ ctx, input }) => nexareplyRepository.archiveProduct(await workspaceScope(ctx.user.id, input.organizationId), input.productId)),
       assets: router({
         list: protectedProcedure.input(organizationInput.extend({ productId: z.number().int().positive().optional() })).query(async ({ ctx, input }) => Promise.all((await nexareplyRepository.listProductAssets(await workspaceScope(ctx.user.id, input.organizationId), input.productId)).map(productAssetDto))),
@@ -256,6 +260,11 @@ export const nexareplyRouter = router({
         }),
         oauthPages: protectedProcedure.input(organizationInput.extend({ sessionId: z.string().min(16).max(64) })).query(async ({ ctx, input }) => metaMessengerService.getOAuthPages(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.sessionId)),
         selectPage: protectedProcedure.input(organizationInput.extend({ sessionId: z.string().min(16).max(64), pageId: z.string().min(1).max(80) })).mutation(async ({ ctx, input }) => metaMessengerService.selectPage(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input)),
+        manualConnect: protectedProcedure.input(organizationInput.extend({ pageId: z.string().trim().regex(/^\d{5,30}$/), pageAccessToken: z.string().trim().min(20).max(4096) })).mutation(async ({ ctx, input }) => {
+          const scope = await workspaceScope(ctx.user.id, input.organizationId, "owner");
+          await requireEntitlement(scope, "meta_channel");
+          return metaMessengerService.connectManualPage(scope, { pageId: input.pageId, pageAccessToken: input.pageAccessToken });
+        }),
         sendText: protectedProcedure.input(organizationInput.extend({ psid: z.string().min(1).max(160), text: z.string().min(1).max(2000) })).mutation(async ({ ctx, input }) => metaMessengerService.sendText(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input)),
       }),
     }),

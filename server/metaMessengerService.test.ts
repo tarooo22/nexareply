@@ -54,17 +54,38 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(new URL(start.authorizationUrl!).pathname).toBe("/v24.0/dialog/oauth");
   });
 
-  it("reports only boolean runtime readiness groups when a managed binding is missing", async () => {
+  it("keeps self-service Meta onboarding available when the optional pilot token is missing", async () => {
     delete process.env.META_PAGE_ACCESS_TOKEN;
     vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue(undefined);
 
     const response = await metaMessengerService.getConnectionStatus(scope);
 
     expect(response).toMatchObject({
-      configured: false,
+      configured: true,
       readiness: { appCredentials: true, webhookChallenge: true, pageDelivery: false, oauthRedirect: true },
     });
     expect(JSON.stringify(response)).not.toMatch(/app-secret|verify-token|page-access-token|accessToken|encrypted/i);
+  });
+
+  it("verifies a manually supplied Page credential and persists only tenant-scoped ciphertext", async () => {
+    const vault = vi.spyOn(nexareplyRepository, "upsertMetaTokenVault").mockResolvedValue(undefined);
+    const connection = vi.spyOn(nexareplyRepository, "upsertMetaConnection").mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: "123456789", name: "Merchant Page" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) }));
+
+    const response = await metaMessengerService.connectManualPage(scope, {
+      pageId: "123456789",
+      pageAccessToken: "manual-page-token-must-never-leak-to-the-browser-response",
+    });
+
+    expect(response).toEqual({ configured: true, status: "connected", page: { id: "123456789", name: "Merchant Page" } });
+    expect(vault).toHaveBeenCalledWith(scope, expect.objectContaining({
+      pageId: "123456789",
+      encryptedPageToken: expect.not.stringContaining("manual-page-token-must-never-leak-to-the-browser-response"),
+    }));
+    expect(connection).toHaveBeenCalledWith(scope, expect.objectContaining({ pageId: "123456789", pageName: "Merchant Page", credentialMode: "tenant_vault" }));
+    expect(JSON.stringify(response)).not.toContain("manual-page-token-must-never-leak-to-the-browser-response");
   });
 
   it("validates the webhook challenge and X-Hub-Signature-256 over the raw request body", () => {
