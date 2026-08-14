@@ -57,6 +57,35 @@ export const organizationMemberships = mysqlTable("organization_memberships", {
   index("membership_user_idx").on(table.userId),
 ]);
 
+/**
+ * Invitation tokens are SHA-256 hashes only. The bearer token exists only in the
+ * one-time owner response/email link and never in persistence or public responses.
+ */
+export const organizationInvitations = mysqlTable("organization_invitations", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  normalizedEmail: varchar("normalizedEmail", { length: 320 }).notNull(),
+  role: mysqlEnum("role", ["operator"]).notNull().default("operator"),
+  tokenHash: varchar("tokenHash", { length: 64 }).notNull(),
+  activeEmailKey: varchar("activeEmailKey", { length: 360 }),
+  status: mysqlEnum("status", ["pending", "accepted", "expired", "cancelled"]).notNull().default("pending"),
+  deliveryStatus: mysqlEnum("deliveryStatus", ["manual_ready", "sent", "delivery_failed"]).notNull().default("manual_ready"),
+  invitedByUserId: int("invitedByUserId").notNull(),
+  providerMessageId: varchar("providerMessageId", { length: 160 }),
+  lastError: text("lastError"),
+  expiresAt: timestamp("expiresAt").notNull(),
+  sentAt: timestamp("sentAt"),
+  acceptedAt: timestamp("acceptedAt"),
+  cancelledAt: timestamp("cancelledAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("organization_invitation_token_unique").on(table.tokenHash),
+  uniqueIndex("organization_invitation_active_email_unique").on(table.activeEmailKey),
+  index("organization_invitation_org_status_idx").on(table.organizationId, table.status, table.expiresAt),
+]);
+
 export const usageCounters = mysqlTable("usage_counters", {
   id: int("id").autoincrement().primaryKey(),
   organizationId: int("organizationId").notNull(),

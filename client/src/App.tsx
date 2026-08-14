@@ -9,6 +9,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import PublicPage from "./pages/PublicPage";
 import AuthenticatedWorkspace from "./pages/AuthenticatedWorkspace";
+import InvitationAccept from "./pages/InvitationAccept";
 
 const DemoWorkspace = lazy(() => import("./pages/DemoWorkspace"));
 
@@ -24,6 +25,7 @@ function Router() {
       <Route path={"/contact"}>{() => <PublicPage kind="contact" />}</Route>
       <Route path={"/demo/:rest*"} component={DemoWorkspace} />
       <Route path={"/demo"} component={DemoWorkspace} />
+      <Route path={"/invite/:token"}>{({ token }) => <InvitationAccept token={token} />}</Route>
       <Route path={"/app"} component={AuthenticatedWorkspace} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

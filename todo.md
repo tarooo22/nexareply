@@ -78,7 +78,16 @@
 - [x] Add owner-facing Meta connection/status and Page selection UI while preserving disabled behavior without managed credentials.
 - [x] Add META_SETUP.md with exact Meta configuration steps, required managed-secret names, callback/webhook setup, and explicit worker-hosting limitation.
 - [x] Add tests for disabled-state behavior, OAuth boundary, signature validation, webhook idempotency, outbound delivery failure, and secret non-exposure.
-- [ ] Prepare the next separate phase for owner-facing membership management and email invitations after Meta tests pass.
+- [x] Prepare the next separate phase for owner-facing membership management and email invitations after Meta tests pass.
 - [x] Remove persisted Meta provider tokens from schema and services; use only managed server-side Page token configuration and persist Page metadata only.
 - [x] Add Meta-specific tests for OAuth invalid/expired/session-scoping boundaries and for token non-exposure in owner status and Page-selection responses.
 - [x] Add explicit Meta OAuth expiry and owner meta-status response secret non-exposure tests.
+- [x] Assess managed email capability, existing membership identity rules, and invitation security constraints.
+- [x] Design the organization invitation schema, one-time token lifecycle, owner/operator authorization, delivery states, and acceptance contract.
+- [x] Add persistent invitation records, token hash storage, owner-only create/list/cancel/resend procedures, and safe invite acceptance.
+- [x] Add owner-facing members and pending-invitation UI with clear sent, accepted, expired, cancelled, and delivery-failed states.
+- [x] Add email invitation delivery adapter with disabled-by-default managed configuration and a safe manual-link fallback.
+- [x] Add tests for invitation authorization, token expiry/replay, tenant isolation, email failure, acceptance, and secret non-exposure.
+- [x] Document email invitation configuration, fallback behavior, and operational limitations.
+- [x] Add owner-only invitation resend procedure and UI action that cancels the prior token before issuing a replacement.
+- [x] Add invitation expiry and replay/accepted-token rejection tests.

@@ -29,6 +29,13 @@
       "when": 1786667603670,
       "tag": "0003_graceful_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1786667956600,
+      "tag": "0004_hot_silver_sable",
+      "breakpoints": true
     }
   ]
 }

@@ -14,6 +14,7 @@ import {
   messages,
   notifications,
   orderItems,
+  organizationInvitations,
   organizationMemberships,
   organizations,
   plans,
@@ -28,6 +29,7 @@ import { getDb } from "./db";
 
 export type WorkspaceRole = "owner" | "operator";
 export type WorkspaceScope = { organizationId: number; role: WorkspaceRole; isDemo: boolean; actorUserId?: number };
+export type InvitationStatus = "pending" | "accepted" | "expired" | "cancelled";
 
 const DEMO_SLUG = "techzone-demo";
 
@@ -97,6 +99,72 @@ export const nexareplyRepository = {
     await db.update(organizationMemberships).set({ role }).where(eq(organizationMemberships.id, member.id));
     await this.addAudit(scope, "membership.role_updated", "membership", String(member.id), { userId, role });
     return { ...member, role };
+  },
+
+  async expireDueInvitations(organizationId?: number) {
+    const db = await requireDb();
+    const conditions = [eq(organizationInvitations.status, "pending"), sql`${organizationInvitations.expiresAt} <= now()`];
+    if (organizationId) conditions.push(eq(organizationInvitations.organizationId, organizationId));
+    await db.update(organizationInvitations).set({ status: "expired", activeEmailKey: null }).where(and(...conditions));
+  },
+
+  async listInvitations(scope: WorkspaceScope) {
+    await this.expireDueInvitations(scope.organizationId);
+    const db = await requireDb();
+    return db.select().from(organizationInvitations).where(eq(organizationInvitations.organizationId, scope.organizationId)).orderBy(desc(organizationInvitations.createdAt));
+  },
+
+  async createInvitation(scope: WorkspaceScope, input: { email: string; normalizedEmail: string; tokenHash: string; expiresAt: Date }) {
+    const db = await requireDb();
+    const activeEmailKey = `${scope.organizationId}:${input.normalizedEmail}`;
+    const existing = (await db.select().from(organizationInvitations).where(eq(organizationInvitations.activeEmailKey, activeEmailKey)).limit(1))[0];
+    if (existing) await db.update(organizationInvitations).set({ status: "cancelled", activeEmailKey: null, cancelledAt: new Date() }).where(eq(organizationInvitations.id, existing.id));
+    await db.insert(organizationInvitations).values({ organizationId: scope.organizationId, email: input.email, normalizedEmail: input.normalizedEmail, tokenHash: input.tokenHash, activeEmailKey, invitedByUserId: scope.actorUserId!, expiresAt: input.expiresAt });
+    const invitation = (await db.select().from(organizationInvitations).where(and(eq(organizationInvitations.organizationId, scope.organizationId), eq(organizationInvitations.tokenHash, input.tokenHash))).limit(1))[0];
+    if (!invitation) throw new Error("Invitation could not be created.");
+    await this.addAudit(scope, "invitation.created", "organization_invitation", String(invitation.id), { email: input.normalizedEmail, role: invitation.role });
+    return invitation;
+  },
+
+  async setInvitationDelivery(scope: WorkspaceScope, invitationId: number, input: { status: "manual_ready" | "sent" | "delivery_failed"; providerMessageId?: string | null; lastError?: string | null }) {
+    const db = await requireDb();
+    await db.update(organizationInvitations).set({ deliveryStatus: input.status, providerMessageId: input.providerMessageId ?? null, lastError: input.lastError ?? null, ...(input.status === "sent" ? { sentAt: new Date() } : {}) }).where(and(eq(organizationInvitations.id, invitationId), eq(organizationInvitations.organizationId, scope.organizationId)));
+    return (await db.select().from(organizationInvitations).where(and(eq(organizationInvitations.id, invitationId), eq(organizationInvitations.organizationId, scope.organizationId))).limit(1))[0];
+  },
+
+  async cancelInvitation(scope: WorkspaceScope, invitationId: number) {
+    const db = await requireDb();
+    const invitation = (await db.select().from(organizationInvitations).where(and(eq(organizationInvitations.id, invitationId), eq(organizationInvitations.organizationId, scope.organizationId))).limit(1))[0];
+    if (!invitation) throw new Error("Invitation not found.");
+    if (invitation.status !== "pending") return invitation;
+    await db.update(organizationInvitations).set({ status: "cancelled", activeEmailKey: null, cancelledAt: new Date() }).where(eq(organizationInvitations.id, invitation.id));
+    await this.addAudit(scope, "invitation.cancelled", "organization_invitation", String(invitation.id), { email: invitation.normalizedEmail });
+    return (await db.select().from(organizationInvitations).where(eq(organizationInvitations.id, invitation.id)).limit(1))[0]!;
+  },
+
+  async getInvitation(scope: WorkspaceScope, invitationId: number) {
+    const db = await requireDb();
+    return (await db.select().from(organizationInvitations).where(and(eq(organizationInvitations.id, invitationId), eq(organizationInvitations.organizationId, scope.organizationId))).limit(1))[0];
+  },
+
+  async getInvitationByTokenHash(tokenHash: string) {
+    await this.expireDueInvitations();
+    const db = await requireDb();
+    return (await db.select({ invitation: organizationInvitations, organization: organizations }).from(organizationInvitations).innerJoin(organizations, eq(organizationInvitations.organizationId, organizations.id)).where(eq(organizationInvitations.tokenHash, tokenHash)).limit(1))[0];
+  },
+
+  async acceptInvitation(input: { tokenHash: string; userId: number; normalizedUserEmail: string }) {
+    await this.expireDueInvitations();
+    const db = await requireDb();
+    const record = await this.getInvitationByTokenHash(input.tokenHash);
+    if (!record) throw new Error("Invitation is invalid or has expired.");
+    const { invitation, organization } = record;
+    if (invitation.status !== "pending" || invitation.normalizedEmail !== input.normalizedUserEmail) throw new Error("Invitation is invalid for this account.");
+    const existingMembership = (await db.select().from(organizationMemberships).where(and(eq(organizationMemberships.organizationId, invitation.organizationId), eq(organizationMemberships.userId, input.userId))).limit(1))[0];
+    if (!existingMembership) await db.insert(organizationMemberships).values({ organizationId: invitation.organizationId, userId: input.userId, role: invitation.role });
+    await db.update(organizationInvitations).set({ status: "accepted", activeEmailKey: null, acceptedAt: new Date() }).where(and(eq(organizationInvitations.id, invitation.id), eq(organizationInvitations.status, "pending")));
+    await db.insert(auditEvents).values({ organizationId: invitation.organizationId, actorUserId: input.userId, action: "invitation.accepted", targetType: "organization_invitation", targetId: String(invitation.id), payload: { invitedEmail: invitation.normalizedEmail, invitedByUserId: invitation.invitedByUserId } });
+    return { invitationId: invitation.id, organizationId: invitation.organizationId, organizationName: organization.name, role: invitation.role, alreadyMember: Boolean(existingMembership) };
   },
 
   async listProducts(scope: WorkspaceScope, query?: string, includeArchived = false) {
