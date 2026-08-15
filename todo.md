@@ -177,3 +177,7 @@
 - [ ] Implement a verified account-owner data-deletion request workflow and deletion audit trail to support the public Meta policy instructions without exposing tenant data.
 - [x] Prepare a complete Georgian project status report covering implemented functionality, architecture, Meta rollout state, limitations, and next required work.
 - [x] Create and validate a complete sanitized NexaReply source archive containing all version-controlled project files and excluding secrets, dependencies, transient logs, and build artifacts.
+
+- [x] Inventory the supplied design concept archive without executing its code and compare its visual assets, tokens, routes, and components with the current NexaReply project.
+- [x] Integrate compatible design concept improvements while preserving Meta OAuth, Amadeo connection, tenant isolation, queue lifecycle, and existing data contracts.
+- [x] Validate the integrated design with responsive screenshots, accessibility states, TypeScript, regression tests, production build, responsive QA and a checkpoint.

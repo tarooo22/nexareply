@@ -1,71 +1,64 @@
+import { ArrowRight, Bot, CheckCircle2, CircleHelp, Clock3, FileText, Inbox, MessageSquareText, ShieldCheck, Sparkles, UsersRound, Zap } from "lucide-react";
+import { Link } from "wouter";
 import { MarketingHeader } from "@/components/MarketingHeader";
 import { NexaLogo } from "@/components/NexaLogo";
-import { ArrowRight, Bot, ChartNoAxesCombined, CheckCircle2, CircleHelp, ClipboardCheck, MessageSquareText, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
-import { Link } from "wouter";
 
 const features = [
-  { icon: Bot, title: "AI პასუხი თქვენი მონაცემებით", text: "კატალოგი და ცოდნის ბაზა პასუხის საფუძველია. გაურკვეველი დეტალი არ გამოიგონება." },
-  { icon: MessageSquareText, title: "ერთი სრული პასუხი", text: "რამდენიმე ზედიზედ შეტყობინება ერთ კითხვად ერთიანდება, რათა საუბარი ბუნებრივად გაგრძელდეს." },
-  { icon: UsersRound, title: "ადამიანური კონტროლი", text: "ნებისმიერ საუბარში შეგიძლიათ AI შეაჩეროთ, აიღოთ მართვა და თავად უპასუხოთ." },
-  { icon: ChartNoAxesCombined, title: "გაყიდვების სრული სურათი", text: "ნახეთ შეტყობინებები, ლიდები, tickets და AI-ისა და გუნდის პასუხების ბალანსი." },
-];
-
-const useCases = [
-  { title: "Amadeo სუნამოების მაღაზია", text: "დაამოწმეთ სურნელი, მოცულობა, ფასი, მარაგი, ორიგინალობის წესი და მიწოდების ინფორმაცია ერთ სამუშაო სივრციდან." },
-  { title: "სილამაზისა და მოვლის ბიზნესი", text: "მომხმარებლის კითხვები გადაამისამართეთ სერვისებზე, ხელმისაწვდომ დროზე, წესებსა და კონსულტაციაზე." },
-  { title: "ლოკალური რითეილი", text: "გააერთიანეთ პროდუქტის ცოდნა, მიწოდების პირობები და ოპერატორის ჩართვა მაღალი განზრახვის მქონე ლიდისთვის." },
+  { icon: Inbox, tone: "teal", title: "Messenger ინტეგრაცია", text: "დააკავშირე Facebook Page და მართე საუბრები ერთი, tenant-safe სამუშაო სივრციდან." },
+  { icon: Bot, tone: "violet", title: "AI draft-ები", text: "AI ამზადებს პასუხს მხოლოდ კატალოგისა და დამტკიცებული ცოდნის ბაზის საფუძველზე." },
+  { icon: FileText, tone: "amber", title: "ცოდნის ბაზა", text: "პროდუქტები, ფასები, მიწოდება და ბიზნეს წესები ერთ დაცულ ადგილას." },
+  { icon: UsersRound, tone: "cyan", title: "ადამიანური კონტროლი", text: "შეაჩერე AI, აიღე საუბარი ან შექმენი handoff ticket მაშინ, როცა საჭიროა." },
 ];
 
 const steps = [
-  ["01", "დაამატეთ თქვენი ცოდნა", "ატვირთეთ პროდუქტები, ფასები, მარაგი, მოცულობა და ბიზნეს წესები."],
-  ["02", "მიეცით AI-ს სწორი კონტექსტი", "აირჩიეთ ტონი, პასუხის სიგრძე და ის პირობები, რომელთა დაპირებაც არ შეიძლება."],
-  ["03", "მართეთ ყველა საუბარი ერთ ადგილას", "AI ამზადებს პასუხს, თქვენ ამტკიცებთ ან იღებთ საუბარს მაშინ, როცა საჭიროა."],
+  ["01", "დააკავშირე შენი Page", "OAuth-ის საშუალებით აირჩიე შენი Facebook Page — token ინახება მხოლოდ დაცულ server-side vault-ში."],
+  ["02", "დაამატე ცოდნა", "ატვირთე კატალოგი, ფასები და წესები; ცვლილებები approval-first პროცესით კონტროლდება."],
+  ["03", "მართე საუბრები", "AI ამზადებს draft-ს და evidence-ს, შენ კი ამტკიცებ, არედაქტირებ ან იღებ საუბარს."],
 ];
 
 const faq = [
-  ["რა არის Demo Mode?", "Demo Mode ღიაა შესვლის გარეშე და იყენებს Amadeo perfume demo-ის წინასწარ მომზადებულ მონაცემებს. ის არ უკავშირდება რეალურ Facebook Page-ს ან რეალურ მომხმარებლებს."],
-  ["AI თვითონ აგზავნის პასუხს?", "Demo Mode-ში პასუხები სიმულირებულია. რეალურ workspace-ში AI-ის ქცევა, დამტკიცება და human takeover ბიზნესის კონფიგურაციით იმართება."],
-  ["როგორ იცავს სისტემა არაზუსტი პასუხისგან?", "როცა კატალოგში ან ცოდნის ბაზაში საკმარისი ინფორმაცია არ არის, NexaReply ქმნის ticket-ს და გადასცემს საკითხს ოპერატორს."],
+  ["რა არის Demo Mode?", "Demo Mode შესვლის გარეშე აჩვენებს Amadeo perfume-store-ის უსაფრთხო მაგალითს. ის არ უკავშირდება რეალურ Facebook მომხმარებლებს ან Page-ს."],
+  ["AI თვითონ აგზავნის პასუხს?", "რეალურ workspace-ში AI draft-ის approval, pause და human takeover ბიზნესის კონფიგურაციით იმართება. საიტი არ გვპირდება იმას, რაც ჯერ არ არის ჩართული."],
+  ["როგორ იცავს სისტემა არაზუსტი პასუხისგან?", "draft-ს ახლავს evidence წყაროებიდან. თუ საკმარისი მონაცემი არ არის, სისტემა ქმნის handoff ticket-ს და საუბარს ოპერატორს გადასცემს."],
 ];
+
+function ChatPreview() {
+  return (
+    <div className="nr-chat-wrap" aria-label="NexaReply Messenger preview">
+      <div className="nr-float nr-float-top"><span>საჭიროა ოპერატორი</span><strong>1 ახალი ticket</strong></div>
+      <div className="nr-float nr-float-bottom"><span>გაყიდვის შესაძლებლობა</span><strong>ლიდი დაფიქსირდა</strong></div>
+      <div className="nr-chat-card">
+        <div className="nr-chat-head"><div className="flex items-center gap-3"><div className="nr-avatar">ა</div><div><p className="text-sm font-bold">ანა მჭედლიძე</p><p className="text-xs text-white/50">Messenger · ახლახან</p></div></div><span className="nr-ai-badge"><span className="nr-pulse" />AI აქტიურია</span></div>
+        <div className="nr-chat-body">
+          <div className="nr-msg nr-customer">გამარჯობა, Rose Amber 50 მლ გაქვთ? მიმდინარე ფასი მაინტერესებს.<small>14:32 ✓✓</small></div>
+          <div className="nr-typing"><i /><i /><i /></div>
+          <div className="nr-msg nr-ai"><span className="nr-ai-label"><Bot className="size-3.5" />AI-ის პასუხი</span>დიახ, პროდუქტი მარაგშია. ფასი და ხელმისაწვდომობა კატალოგში დადასტურებულია.</div>
+          <div className="nr-evidence">◆ წყარო: კატალოგი · SKU AM-4412</div>
+          <div className="nr-msg nr-customer">კი, გავაფორმოთ</div>
+          <div className="nr-handoff">◆ ოპერატორმა ჩაიბარა საუბარი</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+    <div className="nr-marketing min-h-screen overflow-x-hidden text-white">
       <MarketingHeader />
       <main>
-        <section className="relative isolate overflow-hidden">
-          <div className="absolute inset-x-0 top-0 -z-10 h-[560px] bg-[radial-gradient(circle_at_20%_15%,rgba(124,58,237,0.16),transparent_35%),radial-gradient(circle_at_78%_18%,rgba(8,145,178,0.14),transparent_30%)]" />
-          <div className="container grid gap-12 pb-16 pt-16 md:pb-24 md:pt-24 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:gap-16">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/[0.06] px-3 py-1.5 text-sm font-semibold text-primary"><Sparkles className="size-4" aria-hidden="true" />ქართული ბიზნესისთვის შექმნილი AI გაყიდვების სივრცე</div>
-              <h1 className="mt-6 text-4xl font-bold tracking-[-0.045em] text-foreground sm:text-5xl lg:text-[3.7rem] lg:leading-[1.04]">Messenger გაყიდვები <span className="text-primary">უფრო ნათლად</span> იმართება.</h1>
-              <p className="mt-6 max-w-xl text-base leading-8 text-muted-foreground md:text-lg">NexaReply აერთიანებს თქვენს კატალოგს, AI draft-ებს და ადამიანურ კონტროლს ერთ სამუშაო სივრცეში — რათა მომხმარებელმა მიიღოს სწრაფი პასუხი, რომელსაც თქვენი მონაცემები ამყარებს.</p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link href="/auth" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-[0_18px_35px_-20px_rgba(124,58,237,0.92)] transition-transform duration-200 hover:brightness-105 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">შექმენით ანგარიში<ArrowRight className="size-4" aria-hidden="true" /></Link>
-                <Link href="/demo" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-border bg-card px-5 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">იხილეთ Demo Mode</Link>
-              </div>
-              <div className="mt-8 flex flex-wrap gap-x-5 gap-y-3 text-sm text-muted-foreground"><span className="inline-flex items-center gap-2"><CheckCircle2 className="size-4 text-[#15803D]" aria-hidden="true" />ქართული-first გამოცდილება</span><span className="inline-flex items-center gap-2"><CheckCircle2 className="size-4 text-[#15803D]" aria-hidden="true" />მოაბით თქვენი Facebook Page</span></div>
-              <ol className="mt-8 grid max-w-xl gap-2.5 sm:grid-cols-3" aria-label="დაწყების სამი ნაბიჯი">
-                {[["1", "შექმენით ანგარიში"], ["2", "მოაბით Facebook Page"], ["3", "ატვირთეთ კატალოგი"]].map(([number, label]) => <li key={number} className="flex min-h-14 items-center gap-3 rounded-xl border border-border/80 bg-card/70 px-3 text-sm font-semibold shadow-sm"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-xs text-primary">{number}</span>{label}</li>)}
-              </ol>
-            </div>
-            <div className="relative mx-auto w-full max-w-[560px] rounded-[28px] border border-border/80 bg-card p-3 shadow-[0_34px_80px_-44px_rgba(30,27,75,0.42)]">
-              <div className="rounded-[20px] border border-border bg-background p-4 sm:p-5">
-                <div className="flex items-center justify-between border-b border-border pb-4"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-full bg-primary/10 font-semibold text-primary">ა</div><div><p className="text-sm font-semibold">ანა მჭედლიძე</p><p className="text-xs text-muted-foreground">Messenger · ახლახან</p></div></div><span className="rounded-full bg-[#E9F8EF] px-2.5 py-1 text-xs font-semibold text-[#166534] dark:bg-[#166534]/30 dark:text-[#86EFAC]">AI აქტიურია</span></div>
-                <div className="space-y-3 py-5"><div className="ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5 text-sm leading-6 text-primary-foreground">Rose Amber 50 მლ გაქვთ? მიმდინარე ფასი მაინტერესებს.</div><div className="max-w-[89%] rounded-2xl rounded-bl-md border border-[#BEE8F2] bg-[#EDF9FC] px-3.5 py-3 text-sm leading-6 text-[#164E63] dark:border-[#155E75]/70 dark:bg-[#164E63]/30 dark:text-[#CFFAFE]"><div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[#0E7490]"><Bot className="size-3.5" />AI-ის პასუხი</div>სურნელის მოცულობას, ფასს და ხელმისაწვდომობას მხოლოდ catalog-ში დადასტურებული ჩანაწერიდან ვაზუსტებ.</div></div>
-                <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-3"><div className="flex items-start gap-2"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" /><div><p className="text-xs font-semibold text-foreground">რატომ არის პასუხი სანდო?</p><p className="mt-1 text-xs leading-5 text-muted-foreground">AI პასუხობს მხოლოდ პროდუქტის მონაცემებისა და ბიზნეს წესების საფუძველზე.</p></div></div></div>
-              </div>
-              <div className="absolute -right-3 -top-4 hidden rounded-2xl border border-border bg-card px-4 py-3 shadow-lg sm:block"><p className="text-xs font-medium text-muted-foreground">საჭიროა ოპერატორი</p><p className="mt-1 text-sm font-bold text-foreground">1 ახალი ticket</p></div>
-            </div>
-          </div>
-        </section>
-        <section id="features" className="border-y border-border bg-card/50 py-16 md:py-22"><div className="container"><div className="max-w-2xl"><p className="text-sm font-semibold text-primary">კონტროლი ყველა ეტაპზე</p><h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">AI გეხმარებათ პასუხში. გადაწყვეტილებას თქვენ იღებთ.</h2></div><div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{features.map((feature) => { const Icon = feature.icon; return <article key={feature.title} className="rounded-2xl border border-border bg-background p-5 shadow-sm"><span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary"><Icon className="size-5" /></span><h3 className="mt-5 text-base font-bold">{feature.title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{feature.text}</p></article>; })}</div></div></section>
-        <section className="container py-16 md:py-22"><div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div className="max-w-2xl"><p className="text-sm font-semibold text-primary">ვისთვის არის NexaReply</p><h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">ერთი workflow სხვადასხვა გაყიდვების რეალობისთვის.</h2></div><Link href="/demo" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">სცადეთ მაგალითი</Link></div><div className="mt-8 grid gap-4 md:grid-cols-3">{useCases.map((useCase) => <article key={useCase.title} className="rounded-2xl border border-border bg-card p-5 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Use case</span><h3 className="mt-4 text-lg font-bold">{useCase.title}</h3><p className="mt-2 text-sm leading-7 text-muted-foreground">{useCase.text}</p></article>)}</div></section>
-        <section id="how-it-works" className="container py-16 md:py-22"><div className="grid gap-10 lg:grid-cols-[0.7fr_1.3fr]"><div><p className="text-sm font-semibold text-primary">მარტივი workflow</p><h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">თქვენი წესები, თქვენი კატალოგი, ერთი მშვიდი სამუშაო სივრცე.</h2><p className="mt-4 max-w-md text-base leading-7 text-muted-foreground">NexaReply არ ცდილობს ადამიანის ჩანაცვლებას. ის ამზადებს სწორ კონტექსტს და გასაგებ შემდეგ ნაბიჯს.</p></div><div className="grid gap-3">{steps.map(([number, title, text]) => <article key={number} className="grid gap-4 rounded-2xl border border-border bg-card p-5 sm:grid-cols-[44px_1fr]"><span className="grid size-11 place-items-center rounded-xl bg-accent text-sm font-bold text-accent-foreground">{number}</span><div><h3 className="font-bold">{title}</h3><p className="mt-1.5 text-sm leading-6 text-muted-foreground">{text}</p></div></article>)}</div></div></section>
-        <section className="border-y border-border bg-[#F4F0FF] py-16 dark:bg-primary/[0.09]"><div className="container grid gap-8 lg:grid-cols-[1fr_auto]"><div><p className="text-sm font-semibold text-primary">დაიწყეთ NexaReply-ით</p><h2 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight md:text-4xl">ჯერ დაათვალიერეთ დემო, შემდეგ შექმენით თქვენი სამუშაო სივრცე.</h2><p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">Demo Mode-ში ნახავთ catalog-ს, AI draft-ებს, human takeover-ს, tickets-სა და ანალიტიკას. თქვენი ანგარიშიდან კი აკავშირებთ საკუთარ გვერდს და მართავთ საკუთარ მონაცემებს.</p></div><div className="flex flex-col gap-3 self-center sm:flex-row lg:flex-col"><Link href="/auth" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-[0_16px_30px_-18px_rgba(124,58,237,0.85)] transition-transform duration-200 hover:brightness-105 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">დაიწყეთ უფასოდ<ArrowRight className="size-4" /></Link><Link href="/demo" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-border bg-card px-5 text-sm font-semibold text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">იხილეთ Demo Mode</Link></div></div></section>
-        <section className="container py-16 md:py-22"><div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]"><div><p className="text-sm font-semibold text-primary">ხშირი კითხვები</p><h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">ზუსტი საზღვრები ქმნის ნდობას.</h2></div><div className="space-y-3">{faq.map(([question, answer]) => <details key={question} className="group rounded-2xl border border-border bg-card p-5"><summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-bold"><span>{question}</span><CircleHelp className="size-5 shrink-0 text-primary transition-transform group-open:rotate-180" /></summary><p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">{answer}</p></details>)}</div></div></section>
+        <section className="nr-hero relative isolate overflow-hidden"><div className="nr-grid-overlay" /><div className="nr-glow nr-glow-a" /><div className="nr-glow nr-glow-b" /><div className="container nr-hero-grid">
+          <div className="max-w-2xl"><span className="nr-eyebrow"><Sparkles className="size-3.5" />AI გაყიდვების სივრცე ქართული ბიზნესისთვის</span><h1 className="nr-hero-title">AI, რომელიც შენს Messenger-ში <span>ყიდის და პასუხობს</span></h1><p className="nr-hero-lead">დააკავშირე Facebook გვერდი, ატვირთე პროდუქტები და ბიზნეს-ცოდნა — NexaReply ამზადებს სწრაფ, evidence-ით გამყარებულ პასუხებს. კონტროლი კი ყოველთვის შენ გრჩება.</p><div className="flex flex-wrap gap-3"><Link href="/auth" className="nr-btn nr-btn-primary">დაიწყე უფასოდ <ArrowRight className="size-4" /></Link><Link href="/demo" className="nr-btn nr-btn-ghost">ნახე Demo Mode</Link></div><div className="nr-micro"><span>ბარათი არ სჭირდება</span><b /> <span>სწრაფი onboarding</span><b /> <span>ადამიანზე გადართვა</span></div></div>
+          <ChatPreview />
+        </div></section>
+        <div className="nr-trust"><div className="container nr-trust-grid">{[[Zap, "სწრაფი დაკავშირება"], [Clock3, "24/7 AI draft-ები"], [ShieldCheck, "ცოდნაზე დაფუძნებული"], [UsersRound, "ადამიანური კონტროლი"], [MessageSquareText, "ერთიანი Inbox"]].map(([Icon, label]) => <div key={label as string}><Icon className="size-4" />{label as string}</div>)}</div></div>
+        <section id="features" className="container nr-section"><div className="nr-section-head"><span className="nr-eyebrow">კონტროლი ყველა ეტაპზე</span><h2>AI გეხმარება პასუხში. გადაწყვეტილებას შენ იღებ.</h2><p>ყველა შესაძლებლობა ერთ სამუშაო სივრცეში — გამჭვირვალედ, უსაფრთხოდ და შენი ბიზნესის მონაცემებით.</p></div><div className="nr-feature-grid">{features.map(({ icon: Icon, tone, title, text }) => <article key={title} className={`nr-feature nr-feature-${tone}`}><span className="nr-feature-icon"><Icon className="size-5" /></span><h3>{title}</h3><p>{text}</p></article>)}</div></section>
+        <section id="how-it-works" className="nr-section nr-section-alt"><div className="container"><div className="nr-section-head"><span className="nr-eyebrow">მარტივი workflow</span><h2>შენი წესები, შენი კატალოგი, ერთი მშვიდი სივრცე.</h2><p>NexaReply არ ცდილობს ადამიანის ჩანაცვლებას. ის ამზადებს სწორ კონტექსტს და გასაგებ შემდეგ ნაბიჯს.</p></div><div className="nr-steps">{steps.map(([num, title, text]) => <article key={num}><strong>{num}</strong><div><h3>{title}</h3><p>{text}</p></div></article>)}</div></div></section>
+        <section id="app" className="container nr-section"><div className="nr-dashboard-preview"><div className="nr-browser-bar"><span /><span /><span /><code>app.nexareply.ge / inbox</code></div><div className="nr-preview-app"><aside><div className="nr-preview-brand"><div>AR</div><span>Amadeo<br /><small>● დაკავშირებული</small></span></div><p>WORKSPACE</p>{["Overview", "Inbox", "Products", "Knowledge"].map((item, i) => <div key={item} className={i === 1 ? "active" : ""}><MessageSquareText className="size-3.5" />{item}{i === 1 && <b>3</b>}</div>)}</aside><div className="nr-preview-main"><div className="flex items-start justify-between"><div><span className="nr-eyebrow">live workspace</span><h3>Inbox &amp; AI draft-ები</h3><p>მომხმარებლის კონტექსტი, evidence და operator control ერთ ხედში.</p></div><span className="nr-preview-status">● AI აქტიურია</span></div><div className="nr-preview-kpis"><div><span>ღია საუბრები</span><strong>12</strong><small>+4 დღეს</small></div><div><span>AI draft-ები</span><strong>28</strong><small>94% evidence</small></div><div><span>handoff tickets</span><strong>3</strong><small>1 ახალი</small></div></div><div className="nr-preview-thread"><div className="nr-preview-list"><b>ბოლო საუბრები</b><div className="selected">ანა მჭედლიძე <small>Rose Amber 50 მლ გაქვთ?</small></div><div>ნინო ბერიძე <small>მიწოდების პირობები</small></div><div>თამარ გელაშვილი <small>ფასის დაზუსტება</small></div></div><div className="nr-preview-convo"><span className="nr-preview-tag">AI DRAFT · evidence attached</span><div className="bubble user">Rose Amber 50 მლ გაქვთ?</div><div className="bubble bot">დიახ, მარაგშია. ფასი 49₾. გსურთ შეკვეთის გაფორმება?</div><small className="nr-source">◆ Catalog · AM-4412</small></div></div></div></div><div className="nr-preview-note">ეს არის visual preview. რეალური Inbox მუშაობს თქვენს დაცულ workspace-ში — <Link href="/auth">შექმენით ანგარიში</Link>.</div></div></section>
+        <section className="nr-cta"><div className="container"><div className="nr-cta-box"><span className="nr-eyebrow">დაიწყე მშვიდი გაყიდვები</span><h2>ჯერ ნახე Demo, შემდეგ შექმენი შენი workspace.</h2><p>შეაერთე შენი Facebook Page, დაამატე ცოდნა და დატოვე AI მხოლოდ იმ საზღვრებში, რომლებიც შენ განსაზღვრე.</p><div className="flex flex-wrap justify-center gap-3"><Link href="/demo" className="nr-btn nr-btn-ghost">იხილე Demo Mode</Link><Link href="/auth" className="nr-btn nr-btn-primary">შექმენი workspace <ArrowRight className="size-4" /></Link></div></div></div></section>
+        <section className="container nr-section nr-faq"><div className="grid gap-10 lg:grid-cols-[.75fr_1.25fr]"><div><span className="nr-eyebrow">ხშირი კითხვები</span><h2>ზუსტი საზღვრები ქმნის ნდობას.</h2></div><div className="space-y-3">{faq.map(([q, a]) => <details key={q} className="nr-faq-item"><summary>{q}<CircleHelp className="size-5" /></summary><p>{a}</p></details>)}</div></div></section>
       </main>
-      <footer className="border-t border-border bg-card"><div className="container flex flex-col gap-5 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><NexaLogo /><div className="flex flex-wrap gap-x-5 gap-y-2"><Link href="/privacy">კონფიდენციალურობა</Link><Link href="/terms">პირობები</Link><Link href="/contact">კონტაქტი</Link></div></div></footer>
+      <footer className="nr-footer"><div className="container flex flex-col gap-5 py-8 text-sm text-white/55 sm:flex-row sm:items-center sm:justify-between"><NexaLogo /><div className="flex flex-wrap gap-x-5 gap-y-2"><Link href="/privacy">კონფიდენციალურობა</Link><Link href="/terms">პირობები</Link><Link href="/data-deletion">მონაცემების წაშლა</Link><Link href="/contact">კონტაქტი</Link></div></div></footer>
     </div>
   );
 }
