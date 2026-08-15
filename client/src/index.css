@@ -232,3 +232,46 @@
   .nr-marketing .nr-typing.nr-stage-message { display: none; }
   .nr-marketing .nr-float { opacity: 1; transform: none; transition: none; }
 }
+
+/* Authenticated workspace visual system: light operations canvas with violet focus. */
+.nr-workspace {
+  --background: #f6f8fb;
+  --foreground: #182235;
+  --card: #ffffff;
+  --card-foreground: #182235;
+  --popover: #ffffff;
+  --popover-foreground: #182235;
+  --primary: #7357f5;
+  --primary-foreground: #ffffff;
+  --secondary: #eef1ff;
+  --secondary-foreground: #4f46a5;
+  --muted: #f1f4f8;
+  --muted-foreground: #64748b;
+  --accent: #f1efff;
+  --accent-foreground: #5946d8;
+  --border: #e3e8f0;
+  --input: #d9e0ea;
+  --ring: #8b7cf6;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #4b5870;
+  --sidebar-accent: #f4f2ff;
+  --sidebar-accent-foreground: #5844d6;
+  --sidebar-border: #e1e6ef;
+  --sidebar-ring: #8b7cf6;
+  isolation: isolate;
+  background: var(--background);
+}
+.nr-workspace-sidebar { box-shadow: 12px 0 32px -30px rgba(50, 65, 95, .35); }
+.nr-workspace-page-header { border-color: #e3e8f0 !important; box-shadow: 0 14px 34px -28px rgba(50, 65, 95, .45); }
+.nr-workspace .bg-primary { background: linear-gradient(135deg, #806bff, #654fe8); }
+.nr-workspace .bg-secondary { background: #eef1ff; }
+.nr-workspace .bg-card { background: #ffffff; }
+.nr-workspace .border-border { border-color: #e3e8f0; }
+.nr-workspace .text-primary { color: #654fe8; }
+.nr-workspace .text-muted-foreground { color: #64748b; }
+.nr-workspace .nr-onboarding-card { border-color: #d9d4ff; background: linear-gradient(135deg, #f1efff 0%, #ffffff 58%); box-shadow: 0 18px 40px -32px rgba(101, 79, 232, .45); }
+.nr-workspace .nr-onboarding-card article { border-color: #dfe5ee; background: rgba(255,255,255,.9); box-shadow: 0 8px 24px -24px rgba(50, 65, 95, .55); }
+.nr-workspace .nr-onboarding-card article.border-emerald-500\/25 { border-color: #b9ebd8; background: #f1fcf7; }
+.nr-workspace .nr-overview-panel { border-color: #e3e8f0; background: #ffffff; box-shadow: 0 18px 40px -32px rgba(50, 65, 95, .42); }
+.nr-workspace .nr-deletion-card { box-shadow: 0 18px 40px -32px rgba(190, 55, 95, .25); }
+@media (max-width: 1023px) { .nr-workspace-sidebar { box-shadow: none; } .nr-workspace-page-header { border-radius: 18px; } }

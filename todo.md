@@ -222,3 +222,8 @@
 - [x] Extend the public Home Messenger preview completion pause to at least 8 seconds after “კი, გავაფორმოთ” before restarting.
 - [x] Align the “ლიდი დაფიქსირდა” card with the supplied reference below and left of the chat card, including its teal lead-status treatment.
 - [x] Run responsive visual QA, TypeScript, full Vitest, production build, and checkpoint the animation timing refinement.
+
+- [x] Audit the authenticated workspace shell, Overview/Onboarding screen, and current dark-purple dashboard tokens against the supplied light reference direction.
+- [x] Redesign the authenticated workspace shell and Overview/Onboarding cards with the light Alita-style visual system while preserving Georgian copy and functional data contracts.
+- [x] Refine responsive workspace behavior and verify navigation, theme controls, onboarding actions, and owner-only flows remain functional.
+- [x] Run responsive visual QA, TypeScript, full Vitest, production build, and checkpoint the authenticated workspace redesign.
