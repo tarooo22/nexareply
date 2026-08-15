@@ -227,3 +227,8 @@
 - [x] Redesign the authenticated workspace shell and Overview/Onboarding cards with the light Alita-style visual system while preserving Georgian copy and functional data contracts.
 - [x] Refine responsive workspace behavior and verify navigation, theme controls, onboarding actions, and owner-only flows remain functional.
 - [x] Run responsive visual QA, TypeScript, full Vitest, production build, and checkpoint the authenticated workspace redesign.
+
+- [x] Audit the current light workspace override against the supplied third reference and identify remaining purple, contrast, spacing, and card-state deltas.
+- [x] Replace the remaining violet-heavy workspace accents with the third-reference white/pale-aqua/teal-green visual system while preserving restrained violet only where intended.
+- [x] Refine Overview checklist, sidebar active state, page header, metrics, and operational cards to match the third reference's airy hierarchy and dark text.
+- [x] Run responsive visual QA, TypeScript, full Vitest, production build, and checkpoint the exact third-reference workspace refinement.
