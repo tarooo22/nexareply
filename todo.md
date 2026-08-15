@@ -159,4 +159,7 @@
 - [ ] Validate the ten-second trigger contract, repeated-event safety, horizontal-worker behavior, retry/dead-letter lifecycle, TypeScript, tests, production build and safe Amadeo metadata check.
 - [ ] Enable and authorize the selected Cloudflare integration, then provision the tenant-safe delayed queue, dead-letter queue and worker binding through the managed account.
 - [ ] Configure the protected worker-to-NexaReply callback boundary and validate the actual ten-second trigger path without exposing any provider or Meta credentials.
+- [x] Inventory both user-supplied NexaReply archives, identify their five intended improvements, and compare each against the current production source without executing archive code.
+- [x] Safely merge the compatible archive improvements while preserving the encrypted Meta vault, Amadeo fallback, tenant isolation, and durable queue security contracts.
+- [x] Validate the merged archive improvements with regression tests, TypeScript, production build, responsive QA and a safe Amadeo metadata check.
 - [x] Inventory and safely integrate applicable user-supplied archive changes without overwriting Meta credential boundaries, tenant isolation, or in-progress durable worker lifecycle work.
