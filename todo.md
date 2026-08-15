@@ -156,9 +156,9 @@
 - [x] Audit the available durable trigger/hosting path and document the exact production mechanism required for a ten-second dequeue SLA.
 - [x] Implement tenant-isolated durable worker execution with atomic leasing, retry backoff, lease-expiry recovery, idempotency and dead-letter visibility.
 - [x] Add owner-facing Inbox queue observability for pending, processing, retrying, failed and dead-letter work without exposing payloads or Meta credentials.
-- [ ] Validate the ten-second trigger contract, repeated-event safety, horizontal-worker behavior, retry/dead-letter lifecycle, TypeScript, tests, production build and safe Amadeo metadata check.
-- [ ] Enable and authorize the selected Cloudflare integration, then provision the tenant-safe delayed queue, dead-letter queue and worker binding through the managed account.
-- [ ] Configure the protected worker-to-NexaReply callback boundary and validate the actual ten-second trigger path without exposing any provider or Meta credentials.
+- [x] Defer the ten-second trigger contract, repeated-event/horizontal-worker validation, and live SLA claim at the user's request; preserve the documented unconfigured state.
+- [x] Defer Cloudflare integration authorization and tenant-safe delayed/dead-letter queue plus worker provisioning at the user's request; no external resource was created.
+- [x] Defer protected worker callback deployment and actual ten-second trigger validation at the user's request; maintain HMAC code without configuring a dispatch URL.
 - [x] Inventory both user-supplied NexaReply archives, identify their five intended improvements, and compare each against the current production source without executing archive code.
 - [x] Safely merge the compatible archive improvements while preserving the encrypted Meta vault, Amadeo fallback, tenant isolation, and durable queue security contracts.
 - [x] Validate the merged archive improvements with regression tests, TypeScript, production build, responsive QA and a safe Amadeo metadata check.
