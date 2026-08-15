@@ -208,3 +208,8 @@
 - [x] Refine Inbox responsive layout and operational message-status presentation without changing backend contracts.
 - [x] Assess Leads and Settings implementation gaps and document any owner approval needed before new backend procedures.
 - [x] Run incremental responsive QA, TypeScript, full Vitest, production build, and checkpoint each safe continuation stage.
+
+- [x] Decode and inspect the newly supplied visual reference safely without treating its base64 payload as executable content.
+- [x] Compare the reference with the current target screen and identify exact visual deltas.
+- [x] Implement the approved reference-driven visual changes without changing protected backend, auth, tenant, queue, or Meta behavior.
+- [x] Run responsive QA, TypeScript, full Vitest, production build, and checkpoint the reference-driven update.
