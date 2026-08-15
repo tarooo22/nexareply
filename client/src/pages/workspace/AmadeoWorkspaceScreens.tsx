@@ -1402,10 +1402,10 @@ export function WorkspaceKnowledgeScreen({
     );
   return (
     <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_360px]">
-      <section className="rounded-2xl border border-border bg-card p-6">
+      <section className="rounded-3xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
         <div>
-          <p className="text-sm font-bold text-primary">AI-safe answers</p>
-          <h2 className="mt-1 text-xl font-black">ცოდნის ბაზა</h2>
+          <div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">VERIFIED SOURCE</span><p className="text-sm font-bold text-primary">AI-safe answers</p></div>
+          <h2 className="mt-1 text-xl font-extrabold">ცოდნის ბაზა</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             აქ დამატებული facts არის AI კონსულტანტის ერთადერთი policy source. თუ
             პასუხი არ მოიძებნა, სისტემა ticket-ს ქმნის.
@@ -1415,14 +1415,14 @@ export function WorkspaceKnowledgeScreen({
           {facts.data?.map(fact => (
             <article
               key={fact.id}
-              className="rounded-xl border border-border p-4"
+              className="rounded-2xl border border-emerald-500/15 bg-background/35 p-4 transition-colors hover:border-primary/30"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
                     {labels[fact.category] ?? fact.category}
                   </span>
-                  <h3 className="mt-3 font-black">{fact.title}</h3>
+                  <h3 className="mt-3 font-extrabold">{fact.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {fact.body}
                   </p>
@@ -1453,8 +1453,8 @@ export function WorkspaceKnowledgeScreen({
           ) : null}
         </div>
       </section>
-      <aside className="rounded-2xl border border-border bg-card p-6">
-        <h2 className="font-black">ახალი policy fact</h2>
+      <aside className="rounded-3xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
+        <div className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-xl bg-primary/10 text-primary"><Sparkles className="size-4" /></span><h2 className="font-extrabold">ახალი policy fact</h2></div>
         <form
           className="mt-5 space-y-3"
           onSubmit={event => {
@@ -2188,27 +2188,32 @@ export function WorkspaceTicketsScreen({ organizationId }: WorkspaceProps) {
       </div>
     );
   return (
-    <div className="mt-5 rounded-2xl border border-border bg-card p-6">
-      <div className="flex items-center gap-3">
-        <TicketCheck className="size-5 text-primary" />
-        <div>
-          <p className="text-sm font-bold text-primary">Handoff queue</p>
-          <h2 className="mt-1 text-xl font-black">ღია tickets</h2>
+    <div className="mt-5 rounded-3xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-2xl bg-primary/10 text-primary"><TicketCheck className="size-5" /></span>
+          <div>
+            <p className="text-sm font-bold text-primary">Handoff queue</p>
+            <h2 className="mt-1 text-xl font-extrabold">ღია tickets</h2>
+          </div>
         </div>
+        <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-300">
+          {tickets.data?.length ?? 0} ღია
+        </span>
       </div>
       <div className="mt-5 grid gap-3">
         {tickets.data?.map(({ ticket, conversation }) => (
           <article
             key={ticket.id}
-            className="flex flex-col justify-between gap-4 rounded-xl border border-border p-4 sm:flex-row sm:items-center"
+            className="flex flex-col justify-between gap-4 rounded-2xl border border-border/80 bg-background/50 p-4 transition-colors hover:border-primary/30 sm:flex-row sm:items-center"
           >
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <p className="font-black">{conversation.customerName}</p>
+                <p className="font-extrabold">{conversation.customerName}</p>
                 <span
                   className={`rounded-full px-2 py-1 text-xs font-bold ${ticket.priority === "high" ? "bg-rose-100 text-rose-800" : "bg-secondary text-muted-foreground"}`}
                 >
-                  {ticket.priority}
+                  {ticket.priority === "high" ? "მაღალი" : "ნორმალური"}
                 </span>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
@@ -2226,7 +2231,7 @@ export function WorkspaceTicketsScreen({ organizationId }: WorkspaceProps) {
                 )
               }
               disabled={resolve.isPending}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-bold"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-bold transition-colors hover:border-primary/40 hover:bg-primary/5"
             >
               <CheckCircle2 className="size-4 text-emerald-500" />
               დასრულება
@@ -2286,7 +2291,7 @@ export function WorkspaceAnalyticsScreen({ organizationId }: WorkspaceProps) {
   );
   return (
     <div className="mt-5 space-y-5">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MiniMetric
           label="საუბრები"
           value={data.conversationCount}
@@ -2310,15 +2315,18 @@ export function WorkspaceAnalyticsScreen({ organizationId }: WorkspaceProps) {
           accent="text-emerald-500"
         />
       </section>
-      <section className="rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-center gap-3">
-          <BarChart3 className="size-5 text-primary" />
-          <div>
-            <p className="text-sm font-bold text-primary">Message volume</p>
-            <h2 className="mt-1 text-xl font-black">
-              AI და ოპერატორის პასუხები დღეების მიხედვით
-            </h2>
+      <section className="rounded-3xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-2xl bg-ai/10 text-ai"><BarChart3 className="size-5" /></span>
+            <div>
+              <p className="text-sm font-bold text-primary">Message volume</p>
+              <h2 className="mt-1 text-xl font-extrabold">
+                AI და ოპერატორის პასუხები დღეების მიხედვით
+              </h2>
+            </div>
           </div>
+          <span className="rounded-full border border-ai/20 bg-ai/10 px-3 py-1.5 text-xs font-bold text-ai">AI · ადამიანი</span>
         </div>
         {data.dailyVolume.length ? (
           <div className="mt-7 flex h-56 items-end gap-3">
@@ -2334,14 +2342,14 @@ export function WorkspaceAnalyticsScreen({ organizationId }: WorkspaceProps) {
                       style={{
                         height: `${Math.max(5, (row.ai / max) * 170)}px`,
                       }}
-                      className="w-4 rounded-t bg-primary"
+                      className="w-4 rounded-t bg-primary shadow-[0_-4px_16px_rgba(20,184,166,.25)]"
                     />
                     <span
                       title={`Human: ${row.human}`}
                       style={{
                         height: `${Math.max(5, (row.human / max) * 170)}px`,
                       }}
-                      className="w-4 rounded-t bg-cyan-400"
+                      className="w-4 rounded-t bg-ai shadow-[0_-4px_16px_rgba(124,58,237,.2)]"
                     />
                   </div>
                   <span className="text-xs text-muted-foreground">
@@ -2380,15 +2388,16 @@ export function WorkspaceAlertsScreen({ organizationId }: WorkspaceProps) {
       </div>
     );
   return (
-    <div className="mt-5 rounded-2xl border border-border bg-card p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="mt-5 rounded-3xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <BellRing className="size-5 text-primary" />
+          <span className="grid size-10 place-items-center rounded-2xl bg-primary/10 text-primary"><BellRing className="size-5" /></span>
           <div>
             <p className="text-sm font-bold text-primary">Operational alerts</p>
-            <h2 className="mt-1 text-xl font-black">შეტყობინებები</h2>
+            <h2 className="mt-1 text-xl font-extrabold">შეტყობინებები</h2>
           </div>
         </div>
+        <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary">{(alerts.data ?? []).filter(item => !item.readAt).length} წაუკითხავი</span>
         <button
           onClick={() =>
             markRead.mutate(
@@ -2399,7 +2408,7 @@ export function WorkspaceAlertsScreen({ organizationId }: WorkspaceProps) {
           disabled={
             !alerts.data?.some(item => !item.readAt) || markRead.isPending
           }
-          className="min-h-10 rounded-xl border border-border px-4 text-sm font-bold disabled:opacity-50"
+          className="min-h-10 rounded-xl border border-border bg-card px-4 text-sm font-bold transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:opacity-50"
         >
           ყველას წაკითხვა
         </button>
@@ -2408,11 +2417,11 @@ export function WorkspaceAlertsScreen({ organizationId }: WorkspaceProps) {
         {alerts.data?.map(alert => (
           <article
             key={alert.id}
-            className={`rounded-xl border p-4 ${alert.readAt ? "border-border bg-card" : "border-primary/30 bg-primary/5"}`}
+            className={`rounded-2xl border p-4 transition-colors ${alert.readAt ? "border-border/80 bg-background/40" : "border-primary/30 bg-primary/5 shadow-sm"}`}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-black">{alert.title}</p>
+                <div className="flex items-center gap-2"><span className={`size-2 rounded-full ${alert.readAt ? "bg-muted-foreground/30" : "bg-primary"}`} aria-hidden="true" /><p className="font-extrabold">{alert.title}</p></div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {alert.body}
                 </p>
