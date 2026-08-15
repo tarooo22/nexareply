@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Bot, CheckCircle2, CircleHelp, Clock3, FileText, Inbox, MessageSquareText, ShieldCheck, Sparkles, UsersRound, Zap } from "lucide-react";
+import { ArrowRight, Bot, CheckCircle2, CircleHelp, Clock3, FileText, Inbox, MessageSquareText, ShieldCheck, Sparkles, TrendingUp, UsersRound, Zap } from "lucide-react";
 import { Link } from "wouter";
 import { MarketingHeader } from "@/components/MarketingHeader";
 import { NexaLogo } from "@/components/NexaLogo";
@@ -38,15 +38,15 @@ function ChatPreview() {
 
   useEffect(() => {
     if (!isVisible) return;
-    setStage(0);
-    const timer = window.setInterval(() => setStage((current) => (current + 1) % 4), 1500);
-    return () => window.clearInterval(timer);
-  }, [isVisible]);
+    const delay = stage === 3 ? 8000 : 1500;
+    const timer = window.setTimeout(() => setStage((current) => (current + 1) % 4), delay);
+    return () => window.clearTimeout(timer);
+  }, [isVisible, stage]);
 
   return (
     <div ref={wrapRef} className="nr-chat-wrap" aria-label="NexaReply Messenger preview">
       <div className={`nr-float nr-float-top ${stage >= 3 ? "nr-float-visible" : ""}`}><span>საჭიროა ოპერატორი</span><strong>1 ახალი ticket</strong></div>
-      <div className={`nr-float nr-float-bottom ${stage >= 3 ? "nr-float-visible" : ""}`}><span>გაყიდვის შესაძლებლობა</span><strong>ლიდი დაფიქსირდა</strong></div>
+      <div className={`nr-float nr-float-bottom ${stage >= 3 ? "nr-float-visible" : ""}`}><span className="nr-float-lead-label"><TrendingUp className="size-3.5" />გაყიდვის შესაძლებლობა</span><strong>ლიდი დაფიქსირდა</strong></div>
       <div className="nr-chat-card">
         <div className="nr-chat-head"><div className="flex items-center gap-3"><div className="nr-avatar">ა</div><div><p className="text-sm font-bold">ანა მჭედლიძე</p><p className="text-xs text-white/50">Messenger · ახლახან</p></div></div><span className="nr-ai-badge"><span className="nr-pulse" />AI აქტიურია</span></div>
         <div className="nr-chat-body" aria-live="polite">

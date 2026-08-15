@@ -218,3 +218,7 @@
 - [x] Implement viewport-active staged messages in the order customer → AI → customer confirmation → operator handoff, looping every six seconds while Home is visible.
 - [x] Refine floating ticket/lead cards and provide a reduced-motion-safe completed state without changing real Inbox/backend behavior.
 - [x] Run desktop/mobile visual QA, TypeScript, full Vitest, production build, and checkpoint the Home animation update.
+
+- [x] Extend the public Home Messenger preview completion pause to at least 8 seconds after “კი, გავაფორმოთ” before restarting.
+- [x] Align the “ლიდი დაფიქსირდა” card with the supplied reference below and left of the chat card, including its teal lead-status treatment.
+- [x] Run responsive visual QA, TypeScript, full Vitest, production build, and checkpoint the animation timing refinement.
