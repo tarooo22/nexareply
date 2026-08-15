@@ -187,3 +187,4 @@
 - [x] Refine Overview and Inbox density, status hierarchy, responsive behavior, and empty/loading states to match the supplied direction.
 - [x] Verify the analytics placeholder script and seed-techzone export mismatch, fixing only confirmed production issues.
 - [x] Run responsive screenshots, accessibility checks, TypeScript, full Vitest, production build, and save a redesign checkpoint.
+- [x] Perform a read-only Meta OAuth and Graph API permission audit mapping pages_show_list, pages_manage_metadata, pages_messaging, pages_read_engagement, and business_management to exact NexaReply endpoints and user flows; confirm whether business_management is required.
