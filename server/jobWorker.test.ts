@@ -18,11 +18,11 @@ describe("durable conversation worker lease flow", () => {
     expect(complete).toHaveBeenCalledWith(expect.anything(), 501, leaseToken, "completed");
   });
 
-  it("records a failed lease completion when one job cannot be drafted", async () => {
+  it("returns a retrying lifecycle state when one leased job cannot be drafted", async () => {
     vi.spyOn(nexareplyRepository, "claimDueConversationJobs").mockResolvedValue([{ id: 502, organizationId: 42, conversationId: null }] as never);
-    const complete = vi.spyOn(nexareplyRepository, "completeLeasedJob").mockResolvedValue(undefined);
+    const retry = vi.spyOn(nexareplyRepository, "retryLeasedJob").mockResolvedValue({ status: "retrying", scheduledAt: new Date() });
 
-    await expect(processDueConversationJobs(10)).resolves.toEqual([{ jobId: 502, status: "failed" }]);
-    expect(complete).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 42 }), 502, expect.any(String), "failed", "Conversation job has no conversationId");
+    await expect(processDueConversationJobs(10)).resolves.toEqual([{ jobId: 502, status: "retrying" }]);
+    expect(retry).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 42 }), 502, expect.any(String), "Conversation job has no conversationId");
   });
 });

@@ -30,6 +30,17 @@ function MembersPanel({ organizationId }: { organizationId: number }) {
 
 function PanelLoading({ title }: { title: string }) { return <div className="mt-5 flex min-h-32 items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-card/50 text-sm font-bold text-muted-foreground"><Loader2 className="size-4 animate-spin text-primary" />{title}</div>; }
 
+function QueueOwnerPanel({ organizationId }: { organizationId: number }) {
+  const status = trpc.nexareply.workspace.operations.queueStatus.useQuery({ organizationId });
+  const failures = trpc.nexareply.workspace.operations.queueFailures.useQuery({ organizationId, limit: 12 });
+  const redrive = trpc.nexareply.workspace.operations.redriveDeadLetter.useMutation({ onSuccess: () => { void status.refetch(); void failures.refetch(); } });
+  if (status.isLoading) return <PanelLoading title="Queue მდგომარეობა იტვირთება" />;
+  if (status.isError) return <section className="mt-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-5"><p className="font-black">Queue სტატუსი ვერ ჩაიტვირთა</p><button onClick={() => void status.refetch()} className="mt-3 min-h-10 rounded-xl border border-border px-3 text-sm font-bold">განახლება</button></section>;
+  const data = status.data;
+  const cells = [{ label: "Pending", value: data?.pending ?? 0, tone: "text-sky-700 dark:text-sky-300" }, { label: "Processing", value: data?.processing ?? 0, tone: "text-primary" }, { label: "Retrying", value: data?.retrying ?? 0, tone: "text-amber-700 dark:text-amber-300" }, { label: "Failed", value: data?.failed ?? 0, tone: "text-rose-700 dark:text-rose-300" }, { label: "Dead-letter", value: data?.deadLetter ?? 0, tone: "text-rose-700 dark:text-rose-300" }];
+  return <section className="mt-5 rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-bold text-primary">Queue monitoring</p><h2 className="mt-1 text-xl font-black">Inbox job-ის მდგომარეობა</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Worker token, job payload და provider credential არასოდეს ჩანს. {data?.tenSecondGuarantee ? "10-წამიანი trigger დადასტურებულია." : "10-წამიანი trigger ჯერ სრულდება; არსებული სტატუსი არ აცხადებს SLA-ს."}</p></div><button onClick={() => { void status.refetch(); void failures.refetch(); }} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-3 text-sm font-bold"><RefreshCw className="size-4" />განახლება</button></div><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{cells.map((cell) => <article key={cell.label} className="rounded-xl border border-border bg-background p-3"><p className="text-xs font-bold uppercase tracking-[.1em] text-muted-foreground">{cell.label}</p><p className={`mt-2 text-2xl font-black ${cell.tone}`}>{cell.value}</p></article>)}</div>{failures.data?.length ? <div className="mt-4 grid gap-2">{failures.data.map((job) => <article key={job.id} className="flex flex-col justify-between gap-3 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center"><div><p className="text-sm font-black">Job #{job.id} · {job.status === "dead_letter" ? "Dead-letter" : job.status === "retrying" ? "Retrying" : "Failed"}</p><p className="mt-1 text-xs text-muted-foreground">ცდა {job.attempts}/{job.maxAttempts} · {job.errorState ? "processing error" : "მდგომარეობა ახლდება"} · {job.updatedAt ? new Date(job.updatedAt).toLocaleString("ka-GE", { dateStyle: "medium", timeStyle: "short" }) : "—"}</p></div>{job.status === "dead_letter" ? <button onClick={() => redrive.mutate({ organizationId, jobId: job.id })} disabled={redrive.isPending} className="min-h-10 rounded-xl border border-border px-3 text-xs font-bold disabled:opacity-50">{redrive.isPending ? "ბრუნდება…" : "რიგში დაბრუნება"}</button> : null}</article>)}</div> : <p className="mt-4 rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">აქტიური retry ან dead-letter job არ არის.</p>}</section>;
+}
+
 function ThemeSelector() {
   const { theme, setTheme } = useTheme();
   const choices = [
@@ -77,7 +88,7 @@ export default function AuthenticatedWorkspace() {
   const screen = useMemo(() => {
     if (!organization) return null;
     const props = { organizationId: organization.id, role };
-    if (currentSection === "inbox") return <AmadeoInboxScreen {...props} />;
+    if (currentSection === "inbox") return <>{role === "owner" ? <QueueOwnerPanel organizationId={organization.id} /> : null}<AmadeoInboxScreen {...props} /></>;
     if (currentSection === "catalog") return <AmadeoCatalogScreen {...props} />;
     if (currentSection === "knowledge") return <AmadeoKnowledgeComposerScreen {...props} />;
     if (currentSection === "assistant") return <AmadeoAssistantScreen {...props} />;

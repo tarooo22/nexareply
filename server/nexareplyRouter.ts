@@ -224,8 +224,17 @@ export const nexareplyRouter = router({
     analytics: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => analyticsDto(await nexareplyRepository.getAnalytics(await workspaceScope(ctx.user.id, input.organizationId)))),
     operations: router({
       queueStatus: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => {
-        const status = await nexareplyRepository.getQueueStatus(await workspaceScope(ctx.user.id, input.organizationId));
-        return { pending: status.pending, processing: status.processing, failed: status.failed, overdue: status.overdue, oldestPendingAt: status.oldestPendingAt, tenSecondGuarantee: status.tenSecondGuarantee, schedulerCadenceSeconds: status.schedulerCadenceSeconds, schedulerStatus: status.schedulerStatus };
+        const status = await nexareplyRepository.getQueueStatus(await workspaceScope(ctx.user.id, input.organizationId, "owner"));
+        return { pending: status.pending, processing: status.processing, retrying: status.retrying, failed: status.failed, deadLetter: status.deadLetter, overdue: status.overdue, oldestPendingAt: status.oldestPendingAt, tenSecondGuarantee: status.tenSecondGuarantee, schedulerCadenceSeconds: status.schedulerCadenceSeconds, schedulerStatus: status.schedulerStatus };
+      }),
+      queueFailures: protectedProcedure.input(organizationInput.extend({ limit: z.number().int().min(1).max(50).default(30) })).query(async ({ ctx, input }) => {
+        const failures = await nexareplyRepository.listQueueFailures(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.limit);
+        return failures.map((job) => ({ id: job.id, conversationId: job.conversationId, status: job.status, attempts: job.attempts, maxAttempts: job.maxAttempts, scheduledAt: job.scheduledAt, lastAttemptAt: job.lastAttemptAt, deadLetteredAt: job.deadLetteredAt, errorState: job.lastError ? "processing_failed" as const : null, updatedAt: job.updatedAt }));
+      }),
+      redriveDeadLetter: protectedProcedure.input(organizationInput.extend({ jobId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+        const job = await nexareplyRepository.redriveDeadLetterJob(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input.jobId);
+        if (!job) throw new TRPCError({ code: "NOT_FOUND", message: "Dead-letter job ვერ მოიძებნა." });
+        return job;
       }),
     }),
     tickets: router({

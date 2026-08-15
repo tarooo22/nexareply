@@ -709,9 +709,9 @@ export const nexareplyRepository = {
 
   async scheduleConversationProcessing(scope: WorkspaceScope, conversationId: number, latestInboundEventId: string, scheduledAt: Date) {
     const db = await requireDb();
-    const active = (await db.select().from(backgroundJobs).where(and(eq(backgroundJobs.organizationId, scope.organizationId), eq(backgroundJobs.conversationId, conversationId), eq(backgroundJobs.type, "process_conversation"), eq(backgroundJobs.status, "pending"))).limit(1))[0];
+    const active = (await db.select().from(backgroundJobs).where(and(eq(backgroundJobs.organizationId, scope.organizationId), eq(backgroundJobs.conversationId, conversationId), eq(backgroundJobs.type, "process_conversation"), or(eq(backgroundJobs.status, "pending"), eq(backgroundJobs.status, "retrying")))).limit(1))[0];
     if (active) {
-      await db.update(backgroundJobs).set({ scheduledAt, payload: { latestInboundEventId } }).where(eq(backgroundJobs.id, active.id));
+      await db.update(backgroundJobs).set({ status: "pending", scheduledAt, payload: { latestInboundEventId }, lastError: null }).where(eq(backgroundJobs.id, active.id));
       return active.id;
     }
     const dedupeKey = `process:${conversationId}:${latestInboundEventId}`;
@@ -721,24 +721,32 @@ export const nexareplyRepository = {
 
   async dueConversationJobs(limit = 20) {
     const db = await requireDb();
-    return db.select().from(backgroundJobs).where(and(eq(backgroundJobs.type, "process_conversation"), eq(backgroundJobs.status, "pending"), sql`${backgroundJobs.scheduledAt} <= now()`)).orderBy(asc(backgroundJobs.scheduledAt)).limit(limit);
+    return db.select().from(backgroundJobs).where(and(eq(backgroundJobs.type, "process_conversation"), or(eq(backgroundJobs.status, "pending"), eq(backgroundJobs.status, "retrying")), sql`${backgroundJobs.scheduledAt} <= now()`)).orderBy(asc(backgroundJobs.scheduledAt)).limit(limit);
   },
 
   async claimDueConversationJobs(limit: number, leaseToken: string, leaseExpiresAt: Date) {
     const db = await requireDb();
     const now = new Date();
-    await db.update(backgroundJobs).set({ status: "pending", leaseToken: null, leaseExpiresAt: null }).where(and(
-      eq(backgroundJobs.type, "process_conversation"),
-      eq(backgroundJobs.status, "processing"),
-      lt(backgroundJobs.leaseExpiresAt, now),
-    ));
+    const expired = await db.select().from(backgroundJobs).where(and(eq(backgroundJobs.type, "process_conversation"), eq(backgroundJobs.status, "processing"), lt(backgroundJobs.leaseExpiresAt, now)));
+    for (const job of expired) {
+      const exhausted = job.attempts >= job.maxAttempts;
+      const retryDelayMs = Math.min(300_000, 10_000 * 2 ** Math.max(0, job.attempts - 1));
+      await db.update(backgroundJobs).set({
+        status: exhausted ? "dead_letter" : "retrying",
+        scheduledAt: exhausted ? job.scheduledAt : new Date(now.getTime() + retryDelayMs),
+        leaseToken: null,
+        leaseExpiresAt: null,
+        lastError: "Worker lease expired before completion.",
+        ...(exhausted ? { deadLetteredAt: now } : {}),
+      }).where(and(eq(backgroundJobs.id, job.id), eq(backgroundJobs.organizationId, job.organizationId), eq(backgroundJobs.status, "processing"), lt(backgroundJobs.leaseExpiresAt, now)));
+    }
     const candidates = await this.dueConversationJobs(limit);
     const claimed: typeof candidates = [];
     for (const candidate of candidates) {
-      await db.update(backgroundJobs).set({ status: "processing", leaseToken, leaseExpiresAt }).where(and(
+      await db.update(backgroundJobs).set({ status: "processing", leaseToken, leaseExpiresAt, lastAttemptAt: now, attempts: sql`${backgroundJobs.attempts} + 1` }).where(and(
         eq(backgroundJobs.id, candidate.id),
         eq(backgroundJobs.organizationId, candidate.organizationId),
-        eq(backgroundJobs.status, "pending"),
+        or(eq(backgroundJobs.status, "pending"), eq(backgroundJobs.status, "retrying")),
       ));
       const job = (await db.select().from(backgroundJobs).where(and(
         eq(backgroundJobs.id, candidate.id),
@@ -755,7 +763,6 @@ export const nexareplyRepository = {
     const db = await requireDb();
     await db.update(backgroundJobs).set({
       status,
-      attempts: sql`${backgroundJobs.attempts} + 1`,
       leaseToken: null,
       leaseExpiresAt: null,
       ...(status === "completed" ? { processedAt: new Date() } : {}),
@@ -766,6 +773,38 @@ export const nexareplyRepository = {
       eq(backgroundJobs.status, "processing"),
       eq(backgroundJobs.leaseToken, leaseToken),
     ));
+  },
+
+  async retryLeasedJob(scope: WorkspaceScope, jobId: number, leaseToken: string, lastError: string) {
+    const db = await requireDb();
+    const job = (await db.select().from(backgroundJobs).where(and(eq(backgroundJobs.id, jobId), eq(backgroundJobs.organizationId, scope.organizationId), eq(backgroundJobs.status, "processing"), eq(backgroundJobs.leaseToken, leaseToken))).limit(1))[0];
+    if (!job) return { status: "failed" as const, scheduledAt: null };
+    const now = new Date();
+    const exhausted = job.attempts >= job.maxAttempts;
+    const retryDelayMs = Math.min(300_000, 10_000 * 2 ** Math.max(0, job.attempts - 1));
+    const scheduledAt = exhausted ? null : new Date(now.getTime() + retryDelayMs);
+    await db.update(backgroundJobs).set({
+      status: exhausted ? "dead_letter" : "retrying",
+      scheduledAt: scheduledAt ?? job.scheduledAt,
+      leaseToken: null,
+      leaseExpiresAt: null,
+      lastError: lastError.slice(0, 2_000),
+      ...(exhausted ? { deadLetteredAt: now } : {}),
+    }).where(and(eq(backgroundJobs.id, jobId), eq(backgroundJobs.organizationId, scope.organizationId), eq(backgroundJobs.status, "processing"), eq(backgroundJobs.leaseToken, leaseToken)));
+    return { status: exhausted ? "dead_letter" as const : "retrying" as const, scheduledAt };
+  },
+
+  async redriveDeadLetterJob(scope: WorkspaceScope, jobId: number) {
+    const db = await requireDb();
+    const job = (await db.select().from(backgroundJobs).where(and(eq(backgroundJobs.id, jobId), eq(backgroundJobs.organizationId, scope.organizationId), eq(backgroundJobs.status, "dead_letter"))).limit(1))[0];
+    if (!job) return null;
+    await db.update(backgroundJobs).set({ status: "retrying", scheduledAt: new Date(), attempts: 0, leaseToken: null, leaseExpiresAt: null, lastError: null, deadLetteredAt: null }).where(and(eq(backgroundJobs.id, jobId), eq(backgroundJobs.organizationId, scope.organizationId), eq(backgroundJobs.status, "dead_letter")));
+    return { id: job.id, status: "retrying" as const };
+  },
+
+  async listQueueFailures(scope: WorkspaceScope, limit = 30) {
+    const db = await requireDb();
+    return db.select({ id: backgroundJobs.id, conversationId: backgroundJobs.conversationId, status: backgroundJobs.status, attempts: backgroundJobs.attempts, maxAttempts: backgroundJobs.maxAttempts, scheduledAt: backgroundJobs.scheduledAt, lastAttemptAt: backgroundJobs.lastAttemptAt, deadLetteredAt: backgroundJobs.deadLetteredAt, lastError: backgroundJobs.lastError, updatedAt: backgroundJobs.updatedAt }).from(backgroundJobs).where(and(eq(backgroundJobs.organizationId, scope.organizationId), eq(backgroundJobs.type, "process_conversation"), or(eq(backgroundJobs.status, "retrying"), eq(backgroundJobs.status, "failed"), eq(backgroundJobs.status, "dead_letter")))).orderBy(desc(backgroundJobs.updatedAt)).limit(limit);
   },
 
   async consumeRateLimit(scope: WorkspaceScope, bucketKey: string, maximumPerMinute: number) {
@@ -788,12 +827,16 @@ export const nexareplyRepository = {
     const now = Date.now();
     const pending = jobs.filter((job) => job.status === "pending");
     const processing = jobs.filter((job) => job.status === "processing");
+    const retrying = jobs.filter((job) => job.status === "retrying");
     const failed = jobs.filter((job) => job.status === "failed");
+    const deadLetter = jobs.filter((job) => job.status === "dead_letter");
     const oldestPendingAt = pending[0]?.scheduledAt ?? null;
     return {
       pending: pending.length,
       processing: processing.length,
+      retrying: retrying.length,
       failed: failed.length,
+      deadLetter: deadLetter.length,
       overdue: pending.filter((job) => job.scheduledAt.getTime() < now).length,
       oldestPendingAt,
       tenSecondGuarantee: false,
