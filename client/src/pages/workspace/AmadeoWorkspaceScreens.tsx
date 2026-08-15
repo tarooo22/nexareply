@@ -2517,6 +2517,13 @@ export function WorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
     sent: "გაგზავნილია",
     failed: "ვერ გაიგზავნა",
   };
+  const deliveryTone: Record<string, string> = {
+    received: "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+    draft: "border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300",
+    queued: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    sent: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    failed: "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300",
+  };
   const isPaused = Boolean(
     selected?.humanActive ||
     selected?.aiState === "needs_human" ||
@@ -2807,13 +2814,21 @@ export function WorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
                     ←
                   </button>
                   <div className="min-w-0">
-                    <h2 className="truncate font-black">
+                    <h2 className="truncate font-extrabold">
                       {selected.customerName}
                     </h2>
                     <p className="truncate text-xs text-muted-foreground">
                       {selected.customerPhone || "ტელეფონი არ არის მითითებული"}{" "}
                       · {selected.preferredProduct || "ზოგადი კითხვა"}
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${isPaused ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>
+                        {isPaused ? "ადამიანის კონტროლი" : "AI აქტიურია"}
+                      </span>
+                      {selected.priority === "high" ? (
+                        <span className="rounded-full border border-rose-500/25 bg-rose-500/10 px-2 py-1 text-[10px] font-bold text-rose-700 dark:text-rose-300">მაღალი პრიორიტეტი</span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
                 <button
@@ -2881,17 +2896,23 @@ export function WorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
                           )}
                         </div>
                       ) : null}
-                      <p className="mt-2 text-[10px] opacity-70">
-                        {message.sender === "ai"
-                          ? "AI draft"
-                          : message.sender === "operator"
-                            ? "ოპერატორი"
-                            : message.sender === "customer"
-                              ? "კლიენტი"
-                              : "სისტემა"}{" "}
-                        · {deliveryLabel[message.deliveryStatus] ?? "შენახულია"}{" "}
-                        · {dateTime(message.createdAt)}
-                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] opacity-80">
+                        <span>
+                          {message.sender === "ai"
+                            ? "AI draft"
+                            : message.sender === "operator"
+                              ? "ოპერატორი"
+                              : message.sender === "customer"
+                                ? "კლიენტი"
+                                : "სისტემა"}
+                        </span>
+                        <span aria-hidden="true">·</span>
+                        <span className={`rounded-full border px-1.5 py-0.5 font-bold opacity-100 ${deliveryTone[message.deliveryStatus] ?? "border-border bg-background text-muted-foreground"}`}>
+                          {deliveryLabel[message.deliveryStatus] ?? "შენახულია"}
+                        </span>
+                        <span aria-hidden="true">·</span>
+                        <span>{dateTime(message.createdAt)}</span>
+                      </div>
                     </article>
                   ))
                 )}
