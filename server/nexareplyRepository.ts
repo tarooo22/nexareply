@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { and, asc, count, desc, eq, like, lt, or, sql } from "drizzle-orm";
 import {
+  accountDeletionRequests,
   auditEvents,
   backgroundJobs,
   conversationParticipants,
@@ -1073,6 +1074,22 @@ export const nexareplyRepository = {
     return conversation;
   },
 
+  async createAccountDeletionRequest(scope: WorkspaceScope, input: { requesterEmail: string; reason?: string | null }) {
+    const db = await requireDb();
+    const existing = (await db.select().from(accountDeletionRequests).where(and(eq(accountDeletionRequests.organizationId, scope.organizationId), eq(accountDeletionRequests.status, "requested"))).limit(1))[0];
+    if (existing) return { id: existing.id, status: existing.status, requestedAt: existing.requestedAt, duplicate: true };
+    const created = await db.insert(accountDeletionRequests).values({ organizationId: scope.organizationId, requestedByUserId: scope.actorUserId!, requesterEmail: input.requesterEmail.trim().toLowerCase(), verificationMethod: "authenticated_owner", reason: input.reason?.trim() || null });
+    const id = Number((created as unknown as [{ insertId?: number }])[0]?.insertId);
+    if (!Number.isInteger(id) || id <= 0) throw new Error("Deletion request could not be created");
+    await this.addAudit(scope, "account.deletion_requested", "account_deletion_request", String(id), { verificationMethod: "authenticated_owner" });
+    const request = (await db.select().from(accountDeletionRequests).where(and(eq(accountDeletionRequests.id, id), eq(accountDeletionRequests.organizationId, scope.organizationId))).limit(1))[0];
+    if (!request) throw new Error("Deletion request could not be loaded");
+    return { id: request.id, status: request.status, requestedAt: request.requestedAt, duplicate: false };
+  },
+  async listAccountDeletionRequests(scope: WorkspaceScope) {
+    const db = await requireDb();
+    return db.select({ id: accountDeletionRequests.id, organizationId: accountDeletionRequests.organizationId, requesterEmail: accountDeletionRequests.requesterEmail, verificationMethod: accountDeletionRequests.verificationMethod, status: accountDeletionRequests.status, reason: accountDeletionRequests.reason, requestedAt: accountDeletionRequests.requestedAt, reviewedAt: accountDeletionRequests.reviewedAt, completedAt: accountDeletionRequests.completedAt }).from(accountDeletionRequests).where(eq(accountDeletionRequests.organizationId, scope.organizationId)).orderBy(desc(accountDeletionRequests.createdAt));
+  },
   async ensurePlan() {
     const db = await requireDb();
     const existing = (await db.select().from(plans).where(eq(plans.code, "growth-demo")).limit(1))[0];

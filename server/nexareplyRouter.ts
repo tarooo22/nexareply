@@ -259,6 +259,14 @@ export const nexareplyRouter = router({
       history: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => (await nexareplyRepository.listProductImports(await workspaceScope(ctx.user.id, input.organizationId, "owner"))).map((record) => ({ id: record.id, fileName: record.fileName, format: record.format, status: record.status, validRows: record.validRows, invalidRows: record.invalidRows, createdAt: record.createdAt }))),
     }),
     owner: router({
+      accountDeletion: router({
+        list: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listAccountDeletionRequests(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
+        request: protectedProcedure.input(organizationInput.extend({ reason: z.string().trim().max(500).optional() })).mutation(async ({ ctx, input }) => {
+          const scope = await workspaceScope(ctx.user.id, input.organizationId, "owner");
+          if (!ctx.user.email) throw new Error("ანგარიშის ელფოსტა ვერ დადასტურდა.");
+          return nexareplyRepository.createAccountDeletionRequest(scope, { requesterEmail: ctx.user.email, reason: input.reason });
+        }),
+      }),
       integrationStates: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listIntegrationStates(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
       meta: router({
         status: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => metaMessengerService.getConnectionStatus(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),

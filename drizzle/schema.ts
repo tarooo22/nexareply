@@ -514,3 +514,25 @@ export type ProductVariant = typeof productVariants.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type MetaConnection = typeof metaConnections.$inferSelect;
+
+
+/** Verified account-owner deletion requests; no bearer token or secret is persisted. */
+export const accountDeletionRequests = mysqlTable("account_deletion_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organizationId").notNull(),
+  requestedByUserId: int("requestedByUserId").notNull(),
+  requesterEmail: varchar("requesterEmail", { length: 320 }).notNull(),
+  verificationMethod: mysqlEnum("verificationMethod", ["authenticated_owner"]).notNull().default("authenticated_owner"),
+  status: mysqlEnum("status", ["requested", "in_review", "completed", "rejected", "cancelled"]).notNull().default("requested"),
+  reason: varchar("reason", { length: 500 }),
+  requestedAt: timestamp("requestedAt").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewedAt"),
+  completedAt: timestamp("completedAt"),
+  reviewerUserId: int("reviewerUserId"),
+  processingNotes: text("processingNotes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("account_deletion_org_status_idx").on(table.organizationId, table.status, table.createdAt),
+  index("account_deletion_requester_idx").on(table.requestedByUserId, table.createdAt),
+]);

@@ -55,3 +55,21 @@ describe("owner-only NexaReply router procedures", () => {
     await expect(caller.nexareply.workspace.memberships.invitations.resend({ organizationId: 2, invitationId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
+
+
+describe("account deletion request boundaries", () => {
+  it("forbids operators from creating or listing deletion requests", async () => {
+    vi.spyOn(nexareplyRepository, "getWorkspaceScope").mockResolvedValue({ organizationId: 1, role: "operator", isDemo: false, actorUserId: 42 });
+    const caller = appRouter.createCaller(operatorContext());
+    await expect(caller.nexareply.workspace.owner.accountDeletion.list({ organizationId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.nexareply.workspace.owner.accountDeletion.request({ organizationId: 1, reason: "მონაცემების წაშლა" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("creates an owner request using authenticated email, not client-supplied identity", async () => {
+    const scope = { organizationId: 8, role: "owner" as const, isDemo: false, actorUserId: 42 };
+    vi.spyOn(nexareplyRepository, "getWorkspaceScope").mockResolvedValue(scope);
+    const create = vi.spyOn(nexareplyRepository, "createAccountDeletionRequest").mockResolvedValue({ id: 12, status: "requested", requestedAt: new Date(), duplicate: false });
+    await expect(appRouter.createCaller(operatorContext()).nexareply.workspace.owner.accountDeletion.request({ organizationId: 8, reason: "დახურვა" })).resolves.toMatchObject({ id: 12, status: "requested" });
+    expect(create).toHaveBeenCalledWith(scope, { requesterEmail: "operator@example.com", reason: "დახურვა" });
+  });
+});

@@ -87,6 +87,21 @@ function MiniMetric({
   );
 }
 
+function AccountDeletionCard({ organizationId, role }: WorkspaceProps) {
+  return role === "owner" ? <OwnerDeletionRequestCard organizationId={organizationId} /> : null;
+}
+
+function OwnerDeletionRequestCard({ organizationId }: { organizationId: number }) {
+  const [reason, setReason] = useState("");
+  const requests = trpc.nexareply.workspace.owner.accountDeletion.list.useQuery({ organizationId });
+  const request = trpc.nexareply.workspace.owner.accountDeletion.request.useMutation({ onSuccess: () => { setReason(""); void requests.refetch(); } });
+  const active = requests.data?.find((item) => ["requested", "in_review"].includes(item.status));
+  return <section className="rounded-3xl border border-rose-500/20 bg-rose-500/[.035] p-5 shadow-sm" aria-labelledby="deletion-request-title">
+    <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-500/10 text-rose-600"><Trash2 className="size-5" /></span><div><p className="text-sm font-bold text-rose-700 dark:text-rose-300">ანგარიშისა და workspace-ის მონაცემები</p><h2 id="deletion-request-title" className="mt-1 text-lg font-black">მონაცემების წაშლის მოთხოვნა</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">მოთხოვნა მხოლოდ authenticated owner-ის ელფოსტით იგზავნება. ვერიფიკაციისა და დამუშავების შემდეგ შესაბამისი workspace-ის მონაცემები, მათ შორის Meta Page კავშირი, იშლება ან ანონიმიზდება მოქმედი retention წესების მიხედვით.</p></div></div>
+    {active ? <div className="mt-4 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-sm"><p className="font-bold">მოთხოვნა უკვე მიღებულია</p><p className="mt-1 text-muted-foreground">სტატუსი: {active.status === "in_review" ? "განხილვაშია" : "მიღებულია"}. განმეორებითი მოთხოვნა აღარ შეიქმნება.</p></div> : <form className="mt-4 grid gap-3" onSubmit={(event) => { event.preventDefault(); request.mutate({ organizationId, reason: reason.trim() || undefined }); }}><label className="grid gap-2 text-sm font-bold" htmlFor="deletion-reason">მიზეზი <span className="text-xs font-normal text-muted-foreground">არასავალდებულო</span><textarea id="deletion-reason" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} placeholder="მაგალითად, workspace-ის დახურვა" className="min-h-20 resize-y rounded-xl border border-border bg-background p-3 text-sm font-normal outline-none focus-visible:ring-2 focus-visible:ring-primary" /></label><button type="submit" disabled={request.isPending} className="inline-flex min-h-10 w-fit items-center gap-2 rounded-xl bg-rose-600 px-4 text-sm font-bold text-white transition-colors hover:bg-rose-700 disabled:opacity-50">{request.isPending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />} მოთხოვნის გაგზავნა</button>{request.error ? <p className="text-sm text-destructive" role="alert">მოთხოვნა ვერ გაიგზავნა. სცადეთ ხელახლა.</p> : null}</form>}
+  </section>;
+}
+
 function OnboardingChecklist({
   organizationId,
   role,
@@ -341,6 +356,7 @@ export function WorkspaceOverviewScreen({
         role={role}
         onNavigate={onNavigate}
       />
+      <AccountDeletionCard organizationId={organizationId} role={role} />
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MiniMetric
           label="აქტიური საუბრები"
