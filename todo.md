@@ -163,3 +163,5 @@
 - [x] Safely merge the compatible archive improvements while preserving the encrypted Meta vault, Amadeo fallback, tenant isolation, and durable queue security contracts.
 - [x] Validate the merged archive improvements with regression tests, TypeScript, production build, responsive QA and a safe Amadeo metadata check.
 - [x] Inventory and safely integrate applicable user-supplied archive changes without overwriting Meta credential boundaries, tenant isolation, or in-progress durable worker lifecycle work.
+- [x] Fix Facebook OAuth navigation so the authorization URL opens outside embedded previews/iframes and returns safely to the existing callback flow.
+- [x] Validate the top-level OAuth redirect behavior without rotating, exposing, or changing the existing Amadeo Meta connection.

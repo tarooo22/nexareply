@@ -8,6 +8,14 @@ const RESUME_KEY = "nexareply:pending-meta-oauth-session";
 type ConnectionMode = "oauth" | "manual";
 type Stage = "method" | "pages" | "success";
 
+function isEmbeddedPreview() {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+}
+
 function StageProgress({ stage }: { stage: Stage }) {
   const current = stage === "method" ? 1 : 2;
   return <ol className="grid grid-cols-[auto_1fr_auto] items-center gap-3" aria-label="Facebook გვერდის მიბმის ნაბიჯები">
@@ -71,16 +79,33 @@ export function MetaConnectionWizard({ organizationId }: { organizationId: numbe
 
   const beginOAuth = () => {
     setError(null);
+    // Facebook blocks rendering its authorization page inside an iframe. Open
+    // a blank top-level tab synchronously so browser popup protection does not
+    // block the later async authorization URL assignment.
+    const oauthWindow = isEmbeddedPreview() ? window.open("about:blank", "_blank") : null;
+    if (isEmbeddedPreview() && !oauthWindow) {
+      setError("Facebook ავტორიზაციისთვის ბრაუზერმა ცალკე ფანჯარა დაბლოკა. დაუშვი pop-up-ები და სცადე ხელახლა.");
+      return;
+    }
     startOAuth.mutate({ organizationId }, {
       onSuccess: (result) => {
         if (!result.authorizationUrl || !result.sessionId) {
+          oauthWindow?.close();
           setError("Meta ავტორიზაცია ამ გარემოში ჯერ არ არის გამზადებული. სცადე ხელით დაკავშირება ან დაუკავშირდი ადმინისტრატორს.");
           return;
         }
         window.sessionStorage.setItem(RESUME_KEY, result.sessionId);
+        if (oauthWindow) {
+          oauthWindow.opener = null;
+          oauthWindow.location.assign(result.authorizationUrl);
+          return;
+        }
         window.location.assign(result.authorizationUrl);
       },
-      onError: () => setError("Facebook ავტორიზაციის დაწყება ვერ მოხერხდა. სცადე ხელახლა."),
+      onError: () => {
+        oauthWindow?.close();
+        setError("Facebook ავტორიზაციის დაწყება ვერ მოხერხდა. სცადე ხელახლა.");
+      },
     });
   };
 
