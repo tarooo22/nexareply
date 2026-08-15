@@ -166,10 +166,10 @@
 - [x] Fix Facebook OAuth navigation so the authorization URL opens outside embedded previews/iframes and returns safely to the existing callback flow.
 - [x] Validate the top-level OAuth redirect behavior without rotating, exposing, or changing the existing Amadeo Meta connection.
 - [x] Audit the Meta App Facebook Login availability state that blocks non-owner accounts and identify the exact dashboard-side prerequisite.
-- [ ] Remediate or document the necessary Meta App roles, live-mode/review, and required app-detail configuration without changing Amadeo credentials.
+- [x] Remediate or document the necessary Meta App roles, live-mode/review, and required app-detail configuration without changing Amadeo credentials.
 - [ ] Retest a non-owner Facebook OAuth entry safely and document the rollout status for self-service Page connections.
 - [x] Audit Meta Dashboard App Mode, Facebook Login configuration, roles, review and data-use requirements for the current public OAuth blocker.
-- [ ] Complete or explicitly document all Meta-side public rollout prerequisites without rotating Amadeo credentials or changing existing Page delivery.
+- [x] Complete or explicitly document all Meta-side public rollout prerequisites without rotating Amadeo credentials or changing existing Page delivery.
 - [ ] Validate a full external-account OAuth and Page-selection flow after Meta publishes the required changes.
 - [x] Create and publish a valid NexaReply user-data deletion URL, then replace the temporary Meta Basic settings policy URLs without changing app secrets.
 - [ ] Complete the owner-controlled Meta Business Verification and any required Access Verification for the existing business portfolio.
