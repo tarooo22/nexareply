@@ -1,12 +1,13 @@
 import crypto from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { metaMessengerService } from "./metaMessengerService";
+import { sealMetaPageToken } from "./metaTokenVault";
 import { nexareplyRepository, type WorkspaceScope } from "./nexareplyRepository";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
 const scope: WorkspaceScope = { organizationId: 7, role: "owner", isDemo: false, actorUserId: 9 };
-const metaEnvKeys = ["META_APP_ID", "META_APP_SECRET", "META_VERIFY_TOKEN", "META_PAGE_ACCESS_TOKEN", "META_OAUTH_REDIRECT_URI", "META_TOKEN_ENCRYPTION_KEY"] as const;
+const metaEnvKeys = ["META_APP_ID", "META_APP_SECRET", "META_VERIFY_TOKEN", "META_PAGE_ACCESS_TOKEN", "META_OAUTH_REDIRECT_URI", "META_TOKEN_ENCRYPTION_KEY", "META_LOGIN_CONFIG_ID", "ENABLE_META_MANUAL_SETUP"] as const;
 const originalEnv = Object.fromEntries(metaEnvKeys.map((key) => [key, process.env[key]]));
 
 function ownerContext(): TrpcContext {
@@ -68,6 +69,7 @@ describe("Meta Messenger managed configuration and webhook security", () => {
   });
 
   it("verifies a manually supplied Page credential and persists only tenant-scoped ciphertext", async () => {
+    process.env.ENABLE_META_MANUAL_SETUP = "true";
     const vault = vi.spyOn(nexareplyRepository, "upsertMetaTokenVault").mockResolvedValue(undefined);
     const connection = vi.spyOn(nexareplyRepository, "upsertMetaConnection").mockResolvedValue(undefined);
     vi.stubGlobal("fetch", vi.fn()
@@ -175,7 +177,7 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "short-lived-owner-token" }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "long-lived-owner-token" }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ id: "page-vault", name: "Vault Page", access_token: "plaintext-page-token" }] }) }));
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ id: "page-vault", name: "Vault Page", access_token: "plaintext-page-token" }, { id: "page-metadata", name: "Metadata Only" }] }) }));
 
     const response = await metaMessengerService.handleOAuthCallback({ state: "vault-state", code: "authorization-code" });
 
@@ -240,5 +242,99 @@ describe("Meta Messenger managed configuration and webhook security", () => {
 
     await expect(metaMessengerService.sendText(scope, { psid: "psid-1", text: "ტესტი" })).resolves.toEqual({ delivered: false, status: "delivery_failed", error: "Meta message rate limit reached. Try again in the next minute." });
     expect(graph).not.toHaveBeenCalled();
+  });
+
+  it("uses META_LOGIN_CONFIG_ID without a competing scope list when configured", () => {
+    process.env.META_LOGIN_CONFIG_ID = "business-login-config-123";
+    const start = metaMessengerService.createOAuthStart(scope);
+    const url = new URL(start.authorizationUrl!);
+    expect(url.searchParams.get("config_id")).toBe("business-login-config-123");
+    expect(url.searchParams.get("scope")).toBeNull();
+    expect(url.searchParams.get("response_type")).toBe("code");
+  });
+
+  it("keeps the generic OAuth scope fallback when META_LOGIN_CONFIG_ID is absent", () => {
+    delete process.env.META_LOGIN_CONFIG_ID;
+    const start = metaMessengerService.createOAuthStart(scope);
+    const url = new URL(start.authorizationUrl!);
+    expect(url.searchParams.get("config_id")).toBeNull();
+    expect(url.searchParams.get("scope")).toContain("pages_messaging");
+  });
+
+  it("rejects manual Page credentials while manual setup is disabled", async () => {
+    delete process.env.ENABLE_META_MANUAL_SETUP;
+    const graph = vi.fn();
+    vi.stubGlobal("fetch", graph);
+    await expect(metaMessengerService.connectManualPage(scope, { pageId: "123456789", pageAccessToken: "manual-page-token-must-not-be-accepted-when-disabled" })).rejects.toThrow("Manual Meta setup is disabled.");
+    expect(graph).not.toHaveBeenCalled();
+  });
+
+  it("auto-connects exactly one usable returned Page only after identity and webhook verification", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaOauthSessionByStateHash").mockResolvedValue({ id: "auto-session", organizationId: 7, userId: 9, status: "pending", expiresAt: new Date(Date.now() + 60_000) } as never);
+    vi.spyOn(nexareplyRepository, "stageMetaOauthPageTokens").mockResolvedValue(undefined);
+    vi.spyOn(nexareplyRepository, "setMetaOauthPages").mockResolvedValue(undefined);
+    vi.spyOn(nexareplyRepository, "getMetaOauthSession").mockResolvedValue({ id: "auto-session", organizationId: 7, userId: 9, status: "pages_ready", expiresAt: new Date(Date.now() + 60_000), pageCandidates: [{ id: "page-auto", name: "Auto Page" }] } as never);
+    vi.spyOn(nexareplyRepository, "getStagedMetaPageToken").mockResolvedValue({ encryptedPageToken: sealMetaPageToken("auto-page-token") } as never);
+    vi.spyOn(nexareplyRepository, "upsertMetaTokenVault").mockResolvedValue(undefined);
+    vi.spyOn(nexareplyRepository, "upsertMetaConnection").mockResolvedValue(undefined);
+    vi.spyOn(nexareplyRepository, "completeMetaOauthSession").mockResolvedValue(undefined);
+    vi.spyOn(nexareplyRepository, "clearStagedMetaPageTokens").mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "short-lived-owner-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "long-lived-owner-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ id: "page-auto", name: "Auto Page", access_token: "auto-page-token" }] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: "page-auto", name: "Auto Page" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) }));
+
+    await expect(metaMessengerService.handleOAuthCallback({ state: "auto-state", code: "authorization-code" })).resolves.toMatchObject({
+      ok: true,
+      status: "connected",
+      page: { id: "page-auto", name: "Auto Page" },
+    });
+  });
+
+  it("keeps a multiple-Page result in the picker instead of choosing silently", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaOauthSessionByStateHash").mockResolvedValue({ id: "multi-session", organizationId: 7, userId: 9, status: "pending", expiresAt: new Date(Date.now() + 60_000) } as never);
+    const savePages = vi.spyOn(nexareplyRepository, "setMetaOauthPages").mockResolvedValue(undefined);
+    vi.spyOn(nexareplyRepository, "stageMetaOauthPageTokens").mockResolvedValue(undefined);
+    const selectPage = vi.spyOn(metaMessengerService, "selectPage");
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "short-lived-owner-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "long-lived-owner-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [
+        { id: "page-a", name: "Page A", access_token: "page-a-token" },
+        { id: "page-b", name: "Page B", access_token: "page-b-token" },
+      ] }) }));
+
+    await expect(metaMessengerService.handleOAuthCallback({ state: "multi-state", code: "authorization-code" })).resolves.toEqual({
+      ok: true,
+      message: "Pages are ready for selection.",
+      sessionId: "multi-session",
+    });
+    expect(savePages).toHaveBeenCalledWith("multi-session", [{ id: "page-a", name: "Page A" }, { id: "page-b", name: "Page B" }]);
+    expect(selectPage).not.toHaveBeenCalled();
+  });
+
+  it("unsubscribes a tenant Page before clearing its encrypted vault on disconnect", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue({ id: 17, pageId: "page-disconnect", pageName: "Disconnect Page", status: "connected", credentialMode: "tenant_vault" } as never);
+    vi.spyOn(nexareplyRepository, "getMetaTokenVault").mockResolvedValue({ pageId: "page-disconnect", encryptedPageToken: sealMetaPageToken("disconnect-page-token") } as never);
+    const clear = vi.spyOn(nexareplyRepository, "disconnectMetaConnection").mockResolvedValue(undefined);
+    const graph = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) });
+    vi.stubGlobal("fetch", graph);
+
+    await expect(metaMessengerService.disconnect(scope)).resolves.toEqual({ configured: true, status: "disabled" });
+    expect(graph).toHaveBeenCalledTimes(1);
+    expect(new URL(graph.mock.calls[0]?.[0] as string).pathname).toContain("/page-disconnect/subscribed_apps");
+    expect(clear).toHaveBeenCalledWith(scope);
+  });
+
+  it("keeps the tenant vault when Meta rejects disconnect", async () => {
+    vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue({ id: 18, pageId: "page-protected", pageName: "Protected Page", status: "connected", credentialMode: "tenant_vault" } as never);
+    vi.spyOn(nexareplyRepository, "getMetaTokenVault").mockResolvedValue({ pageId: "page-protected", encryptedPageToken: sealMetaPageToken("protected-page-token") } as never);
+    const clear = vi.spyOn(nexareplyRepository, "disconnectMetaConnection").mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 403, json: async () => ({ error: { message: "permission denied" } }) }));
+
+    await expect(metaMessengerService.disconnect(scope)).resolves.toEqual({ configured: true, status: "disconnect_failed" });
+    expect(clear).not.toHaveBeenCalled();
   });
 });

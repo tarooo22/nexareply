@@ -280,8 +280,10 @@ export const nexareplyRouter = router({
         manualConnect: protectedProcedure.input(organizationInput.extend({ pageId: z.string().trim().regex(/^\d{5,30}$/), pageAccessToken: z.string().trim().min(20).max(4096) })).mutation(async ({ ctx, input }) => {
           const scope = await workspaceScope(ctx.user.id, input.organizationId, "owner");
           await requireEntitlement(scope, "meta_channel");
+          if (!metaMessengerService.isManualSetupEnabled()) throw new Error("Manual Meta setup is disabled.");
           return metaMessengerService.connectManualPage(scope, { pageId: input.pageId, pageAccessToken: input.pageAccessToken });
         }),
+        disconnect: protectedProcedure.input(organizationInput).mutation(async ({ ctx, input }) => metaMessengerService.disconnect(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
         sendText: protectedProcedure.input(organizationInput.extend({ psid: z.string().min(1).max(160), text: z.string().min(1).max(2000) })).mutation(async ({ ctx, input }) => metaMessengerService.sendText(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input)),
       }),
     }),

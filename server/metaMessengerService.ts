@@ -24,6 +24,8 @@ type MetaRuntimeReadiness = {
   webhookChallenge: boolean;
   pageDelivery: boolean;
   oauthRedirect: boolean;
+  businessLoginConfiguration: boolean;
+  manualSetupEnabled: boolean;
 };
 
 type MetaPageCandidate = {
@@ -61,6 +63,14 @@ function readMetaOAuthConfig(): MetaOAuthConfig | null {
     : null;
 }
 
+function readMetaLoginConfigId() {
+  return process.env.META_LOGIN_CONFIG_ID?.trim() || "";
+}
+
+function isManualMetaSetupEnabled() {
+  return process.env.ENABLE_META_MANUAL_SETUP?.trim().toLowerCase() === "true";
+}
+
 // `META_PAGE_ACCESS_TOKEN` is retained only as an optional, legacy pilot fallback.
 // Every self-service tenant stores its own Page credential in the encrypted vault.
 function readMetaConfig(): MetaConfig | null {
@@ -80,6 +90,8 @@ function readMetaRuntimeReadiness(): MetaRuntimeReadiness {
     webhookChallenge: Boolean(verifyToken),
     pageDelivery: Boolean(pageAccessToken),
     oauthRedirect: Boolean(redirectUri),
+    businessLoginConfiguration: Boolean(readMetaLoginConfigId()),
+    manualSetupEnabled: isManualMetaSetupEnabled(),
   };
 }
 
@@ -110,7 +122,7 @@ function safeProviderError(error: unknown) {
   return message.slice(0, 500);
 }
 
-async function graphRequest<T>(path: string, input: { method?: "GET" | "POST"; accessToken?: string; body?: Record<string, unknown> } = {}) {
+async function graphRequest<T>(path: string, input: { method?: "GET" | "POST" | "DELETE"; accessToken?: string; body?: Record<string, unknown> } = {}) {
   const url = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${path.replace(/^\//, "")}`);
   if (input.accessToken) url.searchParams.set("access_token", input.accessToken);
   const response = await fetch(url, {
@@ -238,6 +250,10 @@ export const metaMessengerService = {
     return Boolean(readMetaOAuthConfig());
   },
 
+  isManualSetupEnabled() {
+    return isManualMetaSetupEnabled();
+  },
+
   createOAuthStart(scope: WorkspaceScope) {
     const config = readMetaOAuthConfig();
     if (!config) return { configured: false as const, authorizationUrl: null, sessionId: null };
@@ -248,7 +264,14 @@ export const metaMessengerService = {
     authorizationUrl.searchParams.set("redirect_uri", config.redirectUri);
     authorizationUrl.searchParams.set("state", state);
     authorizationUrl.searchParams.set("response_type", "code");
-    authorizationUrl.searchParams.set("scope", "business_management,pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging");
+    const businessLoginConfigId = readMetaLoginConfigId();
+    if (businessLoginConfigId) {
+      // Meta Business Login configurations define assets and permissions; do not add a competing scope list.
+      authorizationUrl.searchParams.set("config_id", businessLoginConfigId);
+    } else {
+      // Preserve the App Admin/Developer/Tester-compatible authorization path until a configuration ID is supplied.
+      authorizationUrl.searchParams.set("scope", "business_management,pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging");
+    }
     return { configured: true as const, authorizationUrl: authorizationUrl.toString(), sessionId, stateHash: stateHash(state), expiresAt: new Date(Date.now() + META_OAUTH_TTL_MS) };
   },
 
@@ -281,6 +304,12 @@ export const metaMessengerService = {
         .map((page) => ({ pageId: page.id, encryptedPageToken: sealMetaPageToken(page.accessToken!), expiresAt: session.expiresAt }));
       if (credentials.length) await nexareplyRepository.stageMetaOauthPageTokens(scope, session.id, credentials);
       await nexareplyRepository.setMetaOauthPages(session.id, pages.map(({ id, name }) => ({ id, name })));
+      if (pages.length === 1 && credentials.length === 1 && credentials[0]?.pageId === pages[0]?.id) {
+        const autoConnection = await this.selectPage(scope, { sessionId: session.id, pageId: pages[0].id });
+        if (autoConnection.status === "connected") {
+          return { ok: true as const, message: "Facebook Page connected.", sessionId: session.id, status: "connected" as const, page: autoConnection.page };
+        }
+      }
       return { ok: true as const, message: "Pages are ready for selection.", sessionId: session.id };
     } catch (error) {
       const message = safeProviderError(error);
@@ -311,15 +340,19 @@ export const metaMessengerService = {
     const staged = await nexareplyRepository.getStagedMetaPageToken(scope, session.id, selected.id);
     if (!staged) throw new Error("Selected Meta Page credential has expired. Start authorization again.");
     try {
+      const verifiedPage = await graphRequest<{ id?: string; name?: string }>(`${encodeURIComponent(selected.id)}?fields=id,name`, {
+        accessToken: openMetaPageToken(staged.encryptedPageToken),
+      });
+      if (verifiedPage.id !== selected.id || !verifiedPage.name) throw new Error("Page identity could not be verified.");
       await graphRequest<{ success?: boolean }>(`${selected.id}/subscribed_apps`, {
         method: "POST",
         accessToken: openMetaPageToken(staged.encryptedPageToken),
         body: { subscribed_fields: "messages,message_deliveries,message_echoes,messaging_postbacks" },
       });
-      await persistTenantPageConnection(scope, selected, staged.encryptedPageToken);
+      await persistTenantPageConnection(scope, { id: verifiedPage.id, name: verifiedPage.name }, staged.encryptedPageToken);
       await nexareplyRepository.completeMetaOauthSession(scope, session.id);
       await nexareplyRepository.clearStagedMetaPageTokens(scope, session.id);
-      return { configured: true as const, status: "connected" as const, page: { id: selected.id, name: selected.name } };
+      return { configured: true as const, status: "connected" as const, page: { id: verifiedPage.id, name: verifiedPage.name } };
     } catch (error) {
       const message = safeProviderError(error);
       await nexareplyRepository.upsertMetaConnection(scope, {
@@ -335,6 +368,7 @@ export const metaMessengerService = {
   async connectManualPage(scope: WorkspaceScope, input: { pageId: string; pageAccessToken: string }) {
     if (!readMetaOAuthConfig()) return { configured: false as const, status: "unconfigured" as const };
     const pageId = input.pageId.trim();
+    if (!isManualMetaSetupEnabled()) throw new Error("Manual Meta setup is disabled.");
     const pageAccessToken = input.pageAccessToken.trim();
     try {
       // Meta validates both Page ownership and the token's scopes here. The plaintext
@@ -376,6 +410,20 @@ export const metaMessengerService = {
     };
   },
 
+  async disconnect(scope: WorkspaceScope) {
+    if (!readMetaOAuthConfig()) return { configured: false as const, status: "unconfigured" as const };
+    const connection = await nexareplyRepository.getMetaConnection(scope);
+    const vault = connection?.credentialMode === "tenant_vault" ? await nexareplyRepository.getMetaTokenVault(scope) : null;
+    if (connection?.pageId && vault?.encryptedPageToken) {
+      try {
+        await graphRequest<{ success?: boolean }>(`${encodeURIComponent(connection.pageId)}/subscribed_apps`, { method: "DELETE", accessToken: openMetaPageToken(vault.encryptedPageToken) });
+      } catch {
+        return { configured: true as const, status: "disconnect_failed" as const };
+      }
+    }
+    await nexareplyRepository.disconnectMetaConnection(scope);
+    return { configured: true as const, status: "disabled" as const };
+  },
   verifyWebhookChallenge(query: Record<string, unknown>) {
     const verifyToken = readWebhookVerifyToken();
     const mode = typeof query["hub.mode"] === "string" ? query["hub.mode"] : "";

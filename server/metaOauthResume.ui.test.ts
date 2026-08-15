@@ -14,4 +14,13 @@ describe("Meta OAuth workspace resume UI", () => {
     expect(source).toContain("meta_oauth_session");
     expect(source).not.toContain('window.open(result.authorizationUrl, "nexareply-meta-oauth"');
   });
+
+  it("keeps manual setup behind a server-provided feature flag and avoids token input in the default OAuth path", () => {
+    expect(source).toContain("manualSetupEnabled");
+    expect(source).toContain("manualSetupEnabled ? <form onSubmit={submitManual}");
+    expect(source).toContain("ამ გარემოში გამორთულია");
+    expect(source).toContain("Facebook-ით ავტორიზაცია");
+    expect(source).toContain("disconnect.mutate");
+    expect(source).toContain("გათიშვა და ახალი Page-ის მიბმა");
+  });
 });

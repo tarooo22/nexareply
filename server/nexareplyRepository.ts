@@ -1024,6 +1024,17 @@ export const nexareplyRepository = {
     return (await db.select().from(metaTokenVaults).where(eq(metaTokenVaults.organizationId, scope.organizationId)).limit(1))[0];
   },
 
+  async disconnectMetaConnection(scope: WorkspaceScope) {
+    const db = await requireDb();
+    const current = await this.getMetaConnection(scope);
+    await db.delete(metaTokenVaults).where(eq(metaTokenVaults.organizationId, scope.organizationId));
+    await db.delete(metaOauthPageTokens).where(eq(metaOauthPageTokens.organizationId, scope.organizationId));
+    if (current) {
+      await db.update(metaConnections).set({ status: "disabled", credentialMode: "none", lastError: null, webhookVerifiedAt: null }).where(eq(metaConnections.id, current.id));
+      await this.addAudit(scope, "meta.connection_disconnected", "meta_connection", current.pageId ?? `connection:${current.id}`, { credentialCleared: true });
+    }
+    await db.update(integrationSettings).set({ status: "disabled", settings: {} }).where(and(eq(integrationSettings.organizationId, scope.organizationId), eq(integrationSettings.provider, "meta")));
+  },
   async failMetaOauthSession(sessionId: string, error: string) {
     const db = await requireDb();
     await db.update(metaOauthSessions).set({ status: "failed", error }).where(eq(metaOauthSessions.id, sessionId));

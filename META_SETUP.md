@@ -15,7 +15,7 @@ NexaReply-ის მიმდინარე production endpoint-ებია:
 | Facebook Login redirect URI | `https://nexareply-2chxuc4s.manus.space/api/integrations/meta/callback` |
 | Messenger webhook callback URL | `https://nexareply-2chxuc4s.manus.space/api/integrations/meta/webhook` |
 
-Facebook Login for Business-ის **Settings → Client OAuth Settings → Valid OAuth Redirect URIs** ველში დაამატეთ ზემოთ მოცემული callback URL. ჩართეთ **Client OAuth Login** და **Web OAuth Login**. Meta strict matching-ს იყენებს: protocol, domain და path ზუსტად უნდა დაემთხვეს runtime callback URL-ს. OAuth flow ითხოვს `business_management`, `pages_show_list`, `pages_read_engagement`, `pages_manage_metadata` და `pages_messaging` უფლებებს. Meta-ის message API-ს Page access token და `pages_messaging` უფლება სჭირდება. [2] [3]
+Facebook Login for Business-ის production configuration-ისთვის გამოიყენეთ `META_LOGIN_CONFIG_ID` თუ owner შექმნის Configuration-ს. ამ მნიშვნელობის გარეშე NexaReply ინარჩუნებს მხოლოდ App Admin/Developer/Tester-სთვის განკუთვნილ generic OAuth fallback-ს. მიმდინარე request-ში `META_LOGIN_CONFIG_ID` ცარიელია. Generic fallback-ის scope-ებია `business_management`, `pages_show_list`, `pages_read_engagement`, `pages_manage_metadata` და `pages_messaging`; production external-account access არ არის გამოცხადებული.
 
 ## 2. დაამატეთ managed secrets
 
@@ -40,9 +40,9 @@ POST webhook-ისთვის NexaReply ადარებს raw request body
 
 ## 4. დააკავშირეთ Page NexaReply-ში
 
-OAuth-ით შედით NexaReply protected workspace-ში როგორც **owner**, გახსენით **ინტეგრაციები → Meta Messenger** და დააჭირეთ **Meta-თან დაკავშირება**. Meta authorization დასრულების შემდეგ დაბრუნდით workspace-ში, დააჭირეთ **Page-ების სიის განახლება** და აირჩიეთ სასურველი Page. OAuth session ინახავს მხოლოდ დასაშვებ Page ID/name metadata-ს და არა Meta access token-ს.
+OAuth-ის შემდეგ NexaReply server-side იღებს Page candidates-ს. თუ ზუსტად ერთი usable Page დაბრუნდა, server ამოწმებს Page identity-ს, token usability-ს და `/{page-id}/subscribed_apps` webhook subscription-ს და შემდეგ ავტომატურად აკავშირებს მას. მხოლოდ რამდენიმე usable Page-ის შემთხვევაში აჩვენებს owner-ს მოკლე Page picker-ს.
 
-NexaReply ავტომატურად ცდილობს არჩეული Page-ის subscription-ს `subscribed_apps` edge-ზე, მაგრამ ამ მოქმედებისთვის იყენებს მხოლოდ managed `META_PAGE_ACCESS_TOKEN`-ს. ამ token-ს `pages_messaging`/`pages_manage_metadata` უფლებები სჭირდება. [1] `meta_connections` ინახავს მხოლოდ Page-ის ID-ს, სახელსა და status metadata-ს; UI იღებს მხოლოდ იმავე არასაიდუმლო მონაცემებს.
+`meta_connections` ინახავს მხოლოდ Page ID/name/status metadata-ს, ხოლო Page credential ინახება მხოლოდ tenant-scoped encrypted vault-ში. Page token, App Secret, Verify Token და callback configuration browser-ში ან tRPC response-ში არ ბრუნდება.
 
 თუ Meta აბრუნებს `Requires pages_manage_metadata permission to manage the object`, subscriptions-ის checkbox-ები საკმარისი არ არის. დაადასტურეთ, რომ token-ის გენერაციის Facebook ანგარიშს არჩეულ Page-ზე აქვს **Full control**, რომ `pages_manage_metadata` მზადაა გამოყენებისთვის **App Review → Permissions and Features**-ში, და შემდეგ ზუსტად იმავე Page-ის რიგიდან თავიდან შექმენით Page token. Page ID და token ყოველთვის ერთი Page-ის რიგიდან უნდა მოდიოდეს.
 
@@ -95,3 +95,13 @@ Production guarantee-ისთვის საჭიროა ცალკე, �
 [3] [Meta Facebook Login Security: redirect URI matching](https://developers.facebook.com/documentation/facebook-login/security)
 
 [4] [Meta Facebook Login for Business](https://developers.facebook.com/documentation/facebook-login/facebook-login-for-business)
+
+## 4A. Current one-click onboarding contract
+
+`META_LOGIN_CONFIG_ID` არის არჩევითი server-only key. თუ ის ცარიელია, authorization URL იყენებს არსებულ generic OAuth fallback-ს, რომელიც მხოლოდ Meta App Admin/Developer/Tester testing-ისთვის არის განკუთვნილი. Configuration ID არ უნდა გამოიგონოთ ან hardcode-ოთ.
+
+`ENABLE_META_MANUAL_SETUP`-ის default არის `false`. ამ მდგომარეობაში ჩვეულებრივ მომხმარებელს არც Page ID-ისა და არც Page Access Token-ის ველები არ უჩანს; server-იც უარყოფს manual mutation-ს. Manual flow შეიძლება დროებით ჩაირთოს მხოლოდ owner-controlled developer/support diagnostics-ისთვის managed environment setting-ით.
+
+Callback-ის შემდეგ connection წარმატებულად ითვლება მხოლოდ მაშინ, როცა Page identity server-side დადასტურდა, staged Page token usable აღმოჩნდა, `subscribed_apps` request წარმატებით დასრულდა და encrypted tenant vault persistence დასრულდა. ერთი usable Page ავტომატურად უკავშირდება; რამდენიმე Page-ის შემთხვევაში owner ირჩევს კონკრეტულს; zero usable Pages, cancelled/denied authorization, expired session, subscription failure და revoked credential ცალკე recovery მდგომარეობებად რჩება.
+
+მიმდინარე უსაფრთხოდ სატესტო scope არის App Admin/Developer/Tester account, რომელსაც Page-ზე აქვს Facebook access with Full control. Meta Business Verification, Advanced Access/App Review, Live/Public mode და non-role external-account retest owner-side prerequisites-ად რჩება.
