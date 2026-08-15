@@ -1,4 +1,4 @@
-import { seedTechZoneDemo } from "../server/demoSeed";
+import { seedAmadeoDemo } from "../server/demoSeed";
 
-const organization = await seedTechZoneDemo();
+const organization = await seedAmadeoDemo();
 console.log(JSON.stringify({ id: organization.id, slug: organization.slug, mode: organization.mode }));

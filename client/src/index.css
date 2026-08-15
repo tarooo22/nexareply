@@ -203,3 +203,20 @@
 
 .nr-marketing > header .text-foreground { color: var(--nr-ink) !important; }
 .nr-marketing > header .text-primary { color: var(--nr-teal-bright) !important; }
+
+
+/* Dark authentication surface, scoped so the operational app can remain light by default. */
+.nr-auth { position: relative; isolation: isolate; overflow: hidden; background: #080b0f; }
+.nr-auth::before, .nr-auth::after { position: absolute; z-index: -1; width: 560px; height: 560px; border-radius: 999px; content: ""; pointer-events: none; filter: blur(14px); }
+.nr-auth::before { top: -220px; left: -180px; background: radial-gradient(circle,rgba(45,212,191,.16),transparent 64%); }
+.nr-auth::after { right: -220px; bottom: -260px; background: radial-gradient(circle,rgba(139,92,246,.14),transparent 64%); }
+.nr-auth .text-foreground { color: #eaf1f5; }
+.nr-auth-kicker { color: #34e7ce; font-family: "JetBrains Mono",ui-monospace,monospace; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.nr-auth-input { border: 1px solid rgba(255,255,255,.12); border-radius: 13px; background: rgba(255,255,255,.035); color: #eaf1f5; outline: none; transition: border-color .18s ease,background .18s ease,box-shadow .18s ease; }
+.nr-auth-input::placeholder { color: rgba(234,241,245,.38); }
+.nr-auth-input:hover { border-color: rgba(255,255,255,.2); }
+.nr-auth-input:focus { border-color: rgba(45,212,191,.8); background: rgba(45,212,191,.045); box-shadow: 0 0 0 3px rgba(45,212,191,.14); }
+.nr-auth > div:first-child a { color: rgba(234,241,245,.65); }
+.nr-auth > div:first-child a:hover { color: #eaf1f5; }
+@media (max-width: 520px) { .nr-auth { padding-left: 16px; padding-right: 16px; }.nr-auth > div:first-child { gap: 12px; }.nr-auth > div:first-child a { font-size: 12px; }.nr-auth section { padding: 23px; } }
+@media (prefers-reduced-motion: reduce) { .nr-auth *, .nr-auth *::before, .nr-auth *::after { transition: none !important; animation: none !important; } }
