@@ -29,3 +29,7 @@ Do not record or submit real customer conversations, real Page tokens, or person
 ## Owner-side prerequisites still pending
 
 The owner must complete Business Verification where Meta requires it, request/obtain Advanced Access or App Review for permissions intended for external users, configure the final Facebook Login for Business Configuration ID if using that architecture, set the app to the required Live/Public state, and perform a fresh external non-role account retest. NexaReply does not claim these Meta-side approvals are complete.
+
+## Lifecycle callback URLs
+
+Use `https://nexareply-2chxuc4s.manus.space/api/integrations/meta/deauthorize` for the deauthorization callback and `https://nexareply-2chxuc4s.manus.space/api/integrations/meta/data-deletion` for the Data Deletion Request URL. Both endpoints require Meta's signed request. The callback returns a confirmation handoff; it does not silently delete a tenant without a verified organization mapping.

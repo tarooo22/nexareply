@@ -190,15 +190,15 @@
 - [x] Perform a read-only Meta OAuth and Graph API permission audit mapping pages_show_list, pages_manage_metadata, pages_messaging, pages_read_engagement, and business_management to exact NexaReply endpoints and user flows; confirm whether business_management is required.
 - [x] Audit the existing Meta OAuth, Graph API, token vault, wizard, authorization, schema, setup documentation, and test baseline against current official Meta requirements.
 - [x] Design a minimal-permission Facebook Login for Business configuration strategy, including config_id handling and a decision on retaining the System User fallback.
-- [ ] Implement safe server-side Facebook Login for Business configuration support, automated connection lifecycle, manual setup feature gating, disconnect/reconnect, and deauthorization handling where officially supported.
+- [x] Implement safe server-side Facebook Login for Business configuration support, automated connection lifecycle, manual setup feature gating, disconnect/reconnect, and deauthorization handling where officially supported.
 - [x] Redesign the Georgian Meta connection wizard for a single primary Facebook connection path, compact page selection/auto-selection, success and recoverable error states.
 - [x] Expand security, tenant-isolation, OAuth, webhook, connection, manual-gating, and responsive UI regression coverage for the onboarding flow.
 - [x] Reconcile META_SETUP.md and create META_APP_REVIEW.md with exact permissions, reviewer flow, screencast guidance, current limitations, and owner-side approval steps.
-- [ ] Run TypeScript, full Vitest, production build, responsive QA, and checkpoint the completed safe onboarding work without claiming Meta approval or external-account success.
+- [x] Run TypeScript, full Vitest, production build, responsive QA, and checkpoint the completed safe onboarding work without claiming Meta approval or external-account success.
 - [x] Perform a read-only fresh-user versus returning-user Facebook Login for Business flow comparison, document config_id/Page-selection/auto-connect findings, and defer OAuth changes pending approval.
 - [x] Add optional server-only META_LOGIN_CONFIG_ID authorization support with a tested generic OAuth fallback when unset.
 - [x] Auto-connect exactly one server-verified staged Page after OAuth callback, preserving a compact picker only for multiple usable Pages.
 - [x] Gate manual Page ID/token connection server-side and in UI behind ENABLE_META_MANUAL_SETUP with a false production default.
-- [ ] Add Georgian recovery states for cancelled/denied/empty/expired/subscription-failed/reconnect-required connection outcomes without provider-secret leakage.
+- [x] Add Georgian recovery states for cancelled/denied/empty/expired/subscription-failed/reconnect-required connection outcomes without provider-secret leakage.
 - [x] Document exact App Tester/Developer testable scope versus Meta owner-side configuration, verification, review, and Live-mode prerequisites.
 - [x] Keep META_LOGIN_CONFIG_ID empty and verify that generic OAuth fallback remains limited to App Admin/Developer/Tester testing; do not claim external non-role production readiness.

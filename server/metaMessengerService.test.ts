@@ -27,6 +27,12 @@ function configureMeta() {
   process.env.META_TOKEN_ENCRYPTION_KEY = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
 }
 
+function signedMetaRequest(payload: Record<string, unknown>) {
+  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = crypto.createHmac("sha256", "app-secret").update(encodedPayload).digest("base64url");
+  return `${signature}.${encodedPayload}`;
+}
+
 beforeEach(() => {
   configureMeta();
   vi.spyOn(nexareplyRepository, "consumeRateLimit").mockResolvedValue({ allowed: true, hits: 1, remaining: 119, windowStartsAt: new Date() });
@@ -336,5 +342,25 @@ describe("Meta Messenger managed configuration and webhook security", () => {
 
     await expect(metaMessengerService.disconnect(scope)).resolves.toEqual({ configured: true, status: "disconnect_failed" });
     expect(clear).not.toHaveBeenCalled();
+  });
+
+  it("accepts a valid signed deauthorization request without exposing provider identity", () => {
+    const result = metaMessengerService.handleDeauthorization(signedMetaRequest({ algorithm: "HMAC-SHA256", user_id: "facebook-user-123", issued_at: 1700000000 }));
+    expect(result.ok).toBe(true);
+    expect(JSON.stringify(result)).not.toContain("facebook-user-123");
+    expect(result).toMatchObject({ confirmationCode: expect.any(String) });
+  });
+
+  it("returns Meta-compatible data-deletion confirmation metadata only for a valid signature", () => {
+    const result = metaMessengerService.handleDataDeletionRequest(signedMetaRequest({ algorithm: "HMAC-SHA256", user_id: "facebook-user-456", issued_at: 1700000001 }));
+    expect(result).toMatchObject({ ok: true, url: expect.stringContaining("/data-deletion?confirmation_code="), confirmationCode: expect.any(String) });
+    expect(JSON.stringify(result)).not.toContain("facebook-user-456");
+  });
+
+  it("rejects tampered signed requests before any deletion response is produced", () => {
+    const signed = signedMetaRequest({ algorithm: "HMAC-SHA256", user_id: "facebook-user-789", issued_at: 1700000002 });
+    const tampered = `${signed.slice(0, -1)}x`;
+    expect(metaMessengerService.handleDeauthorization(tampered)).toEqual({ ok: false, reason: "invalid_signature" });
+    expect(metaMessengerService.handleDataDeletionRequest(tampered)).toEqual({ ok: false, reason: "invalid_signature" });
   });
 });

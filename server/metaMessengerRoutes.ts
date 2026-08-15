@@ -31,6 +31,20 @@ export function registerMetaMessengerRoutes(app: Express) {
     }
   });
 
+  app.post("/api/integrations/meta/deauthorize", express.urlencoded({ extended: false, limit: "50kb" }), (req: Request, res: Response) => {
+    const signedRequest = typeof req.body?.signed_request === "string" ? req.body.signed_request : "";
+    const result = metaMessengerService.handleDeauthorization(signedRequest);
+    if (!result.ok) return res.sendStatus(result.reason === "unconfigured" ? 503 : 400);
+    return res.status(200).json({ success: true, confirmation_code: result.confirmationCode });
+  });
+
+  app.post("/api/integrations/meta/data-deletion", express.urlencoded({ extended: false, limit: "50kb" }), (req: Request, res: Response) => {
+    const signedRequest = typeof req.body?.signed_request === "string" ? req.body.signed_request : "";
+    const result = metaMessengerService.handleDataDeletionRequest(signedRequest);
+    if (!result.ok) return res.sendStatus(result.reason === "unconfigured" ? 503 : 400);
+    return res.status(200).json({ url: result.url, confirmation_code: result.confirmationCode });
+  });
+
   app.get("/api/integrations/meta/callback", async (req: Request, res: Response) => {
     const input = {
       state: typeof req.query.state === "string" ? req.query.state : undefined,

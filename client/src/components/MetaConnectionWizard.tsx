@@ -76,11 +76,17 @@ export function MetaConnectionWizard({ organizationId }: { organizationId: numbe
   useEffect(() => () => setPageAccessToken(""), []);
 
   const connected = status.data?.status === "connected";
+  const connectionRecoveryMessage = useMemo(() => {
+    if (status.data?.status === "verification_failed") return "Page-ის დადასტურება ან webhook subscription ვერ დასრულდა. ძველი credential დაცულია; ხელახლა გაიარე Facebook ავტორიზაცია.";
+    if (status.data?.status === "delivery_failed") return "Messenger delivery შეფერხებულია. გადაამოწმე Page-ის უფლებები და ხელახლა დააკავშირე Page.";
+    if (status.data?.status === "disabled") return "ეს კავშირი გამორთულია. განაახლე Facebook ავტორიზაცია ახალი Page-ის დასაკავშირებლად.";
+    return null;
+  }, [status.data?.status]);
   const pageCount = pages.data?.pages.length ?? 0;
   const showWizard = !connected || Boolean(sessionId) || stage === "success";
   const isSubmitting = startOAuth.isPending || selectPage.isPending || manualConnect.isPending || disconnect.isPending;
   const message = useMemo(() => {
-    if (pages.data?.status === "failed") return "Facebook ავტორიზაცია ვერ დასრულდა. დაიწყე თავიდან და გადაამოწმე Page-ის ადმინისტრატორის წვდომა.";
+    if (pages.data?.status === "failed") return "Facebook ავტორიზაცია გაუქმდა ან უარყოფილია. დაიწყე თავიდან და გადაამოწმე Page-ის ადმინისტრატორის წვდომა.";
     if (pages.data?.status === "expired") return "ავტორიზაციის სესიის დრო ამოიწურა. დაიწყე თავიდან.";
     return null;
   }, [pages.data?.status]);

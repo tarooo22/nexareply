@@ -105,3 +105,15 @@ Production guarantee-ისთვის საჭიროა ცალკე, �
 Callback-ის შემდეგ connection წარმატებულად ითვლება მხოლოდ მაშინ, როცა Page identity server-side დადასტურდა, staged Page token usable აღმოჩნდა, `subscribed_apps` request წარმატებით დასრულდა და encrypted tenant vault persistence დასრულდა. ერთი usable Page ავტომატურად უკავშირდება; რამდენიმე Page-ის შემთხვევაში owner ირჩევს კონკრეტულს; zero usable Pages, cancelled/denied authorization, expired session, subscription failure და revoked credential ცალკე recovery მდგომარეობებად რჩება.
 
 მიმდინარე უსაფრთხოდ სატესტო scope არის App Admin/Developer/Tester account, რომელსაც Page-ზე აქვს Facebook access with Full control. Meta Business Verification, Advanced Access/App Review, Live/Public mode და non-role external-account retest owner-side prerequisites-ად რჩება.
+
+## 7. Meta lifecycle callback URLs
+
+Meta Dashboard-ის **Deauthorize callback URL** ველში გამოიყენეთ:
+
+`https://nexareply-2chxuc4s.manus.space/api/integrations/meta/deauthorize`
+
+**Data Deletion Request URL** ველში გამოიყენეთ:
+
+`https://nexareply-2chxuc4s.manus.space/api/integrations/meta/data-deletion`
+
+ორივე endpoint იღებს Meta-ს `signed_request` form field-ს და ამოწმებს App Secret-ით HMAC-SHA256 signature-ს. არასწორი signature უარყოფილია. Data deletion callback აბრუნებს Meta-სთვის საჭირო `url`-სა და `confirmation_code`-ს; ეს callback ვერ ახდენს ავტომატურ tenant deletion-ს, რადგან Meta provider user ID-სა და NexaReply organization-ს შორის verified mapping მიმდინარე schema-ში არ ინახება. საბოლოო წაშლა იწყება authenticated owner workflow-ით `/data-deletion` policy page-დან.

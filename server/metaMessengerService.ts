@@ -117,6 +117,29 @@ function safeEqual(a: string, b: string) {
   return aBytes.length === bBytes.length && crypto.timingSafeEqual(aBytes, bBytes);
 }
 
+function decodeBase64Url(input: string) {
+  return Buffer.from(input.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+}
+
+function parseMetaSignedRequest(signedRequest: string, appSecret: string) {
+  const [encodedSignature, encodedPayload] = signedRequest.split(".");
+  if (!encodedSignature || !encodedPayload) return null;
+  const expected = crypto.createHmac("sha256", appSecret).update(encodedPayload).digest("base64url");
+  if (!safeEqual(encodedSignature, expected)) return null;
+  try {
+    const payload = JSON.parse(decodeBase64Url(encodedPayload)) as { algorithm?: string; user_id?: string; issued_at?: number };
+    if (payload.algorithm && payload.algorithm !== "HMAC-SHA256") return null;
+    if (!payload.user_id || typeof payload.user_id !== "string") return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function signedRequestConfirmationCode(userId: string, issuedAt: number | undefined, appSecret: string) {
+  return crypto.createHash("sha256").update(`${userId}:${issuedAt ?? ""}:${appSecret}`).digest("hex").slice(0, 20);
+}
+
 function safeProviderError(error: unknown) {
   const message = error instanceof Error ? error.message : "Unknown Meta request failure";
   return message.slice(0, 500);
@@ -408,6 +431,24 @@ export const metaMessengerService = {
       lastInboundAt: connection?.lastInboundAt ?? null,
       lastDeliveryAt: connection?.lastDeliveryAt ?? null,
     };
+  },
+
+  handleDeauthorization(signedRequest: string) {
+    const appSecret = readWebhookAppSecret();
+    if (!appSecret) return { ok: false as const, reason: "unconfigured" as const };
+    const payload = parseMetaSignedRequest(signedRequest, appSecret);
+    if (!payload) return { ok: false as const, reason: "invalid_signature" as const };
+    return { ok: true as const, confirmationCode: signedRequestConfirmationCode(payload.user_id!, payload.issued_at, appSecret) };
+  },
+
+  handleDataDeletionRequest(signedRequest: string) {
+    const appSecret = readWebhookAppSecret();
+    if (!appSecret) return { ok: false as const, reason: "unconfigured" as const };
+    const payload = parseMetaSignedRequest(signedRequest, appSecret);
+    if (!payload) return { ok: false as const, reason: "invalid_signature" as const };
+    const confirmationCode = signedRequestConfirmationCode(payload.user_id!, payload.issued_at, appSecret);
+    const publicOrigin = new URL(readMetaOAuthConfig()?.redirectUri ?? "https://nexareply-2chxuc4s.manus.space/api/integrations/meta/callback").origin;
+    return { ok: true as const, url: `${publicOrigin}/data-deletion?confirmation_code=${encodeURIComponent(confirmationCode)}`, confirmationCode };
   },
 
   async disconnect(scope: WorkspaceScope) {
