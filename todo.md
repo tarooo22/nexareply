@@ -213,3 +213,8 @@
 - [x] Compare the reference with the current target screen and identify exact visual deltas.
 - [x] Implement the approved reference-driven visual changes without changing protected backend, auth, tenant, queue, or Meta behavior.
 - [x] Run responsive QA, TypeScript, full Vitest, production build, and checkpoint the reference-driven update.
+
+- [x] Audit the current Home Messenger preview markup and animation styles for staged message sequencing.
+- [x] Implement viewport-active staged messages in the order customer → AI → customer confirmation → operator handoff, looping every six seconds while Home is visible.
+- [x] Refine floating ticket/lead cards and provide a reduced-motion-safe completed state without changing real Inbox/backend behavior.
+- [x] Run desktop/mobile visual QA, TypeScript, full Vitest, production build, and checkpoint the Home animation update.

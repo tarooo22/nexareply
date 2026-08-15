@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Bot, CheckCircle2, CircleHelp, Clock3, FileText, Inbox, MessageSquareText, ShieldCheck, Sparkles, UsersRound, Zap } from "lucide-react";
 import { Link } from "wouter";
 import { MarketingHeader } from "@/components/MarketingHeader";
@@ -23,19 +24,38 @@ const faq = [
 ];
 
 function ChatPreview() {
+  const [stage, setStage] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = wrapRef.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting), { threshold: 0.35 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible) return;
+    setStage(0);
+    const timer = window.setInterval(() => setStage((current) => (current + 1) % 4), 1500);
+    return () => window.clearInterval(timer);
+  }, [isVisible]);
+
   return (
-    <div className="nr-chat-wrap" aria-label="NexaReply Messenger preview">
-      <div className="nr-float nr-float-top"><span>საჭიროა ოპერატორი</span><strong>1 ახალი ticket</strong></div>
-      <div className="nr-float nr-float-bottom"><span>გაყიდვის შესაძლებლობა</span><strong>ლიდი დაფიქსირდა</strong></div>
+    <div ref={wrapRef} className="nr-chat-wrap" aria-label="NexaReply Messenger preview">
+      <div className={`nr-float nr-float-top ${stage >= 3 ? "nr-float-visible" : ""}`}><span>საჭიროა ოპერატორი</span><strong>1 ახალი ticket</strong></div>
+      <div className={`nr-float nr-float-bottom ${stage >= 3 ? "nr-float-visible" : ""}`}><span>გაყიდვის შესაძლებლობა</span><strong>ლიდი დაფიქსირდა</strong></div>
       <div className="nr-chat-card">
         <div className="nr-chat-head"><div className="flex items-center gap-3"><div className="nr-avatar">ა</div><div><p className="text-sm font-bold">ანა მჭედლიძე</p><p className="text-xs text-white/50">Messenger · ახლახან</p></div></div><span className="nr-ai-badge"><span className="nr-pulse" />AI აქტიურია</span></div>
-        <div className="nr-chat-body">
-          <div className="nr-msg nr-customer">გამარჯობა, ეს არომატი გაქვთ მარაგში?<small>14:32 ✓✓</small></div>
-          <div className="nr-typing"><i /><i /><i /></div>
-          <div className="nr-msg nr-ai"><span className="nr-ai-label"><Bot className="size-3.5" />AI-ის პასუხი</span>დიახ, პროდუქტია მარაგში. ფასი არის 49₾. გსურთ შეკვეთის გაფორმება?</div>
-          <div className="nr-evidence">◆ წყარო: კატალოგი · SKU AM-4412</div>
-          <div className="nr-msg nr-customer">კი, გავაფორმოთ</div>
-          <div className="nr-handoff">◆ ოპერატორმა ჩაიბარა საუბარი</div>
+        <div className="nr-chat-body" aria-live="polite">
+          <div className={`nr-msg nr-customer nr-stage-message ${stage >= 0 ? "nr-stage-visible" : ""}`}>გამარჯობა, ეს არომატი გაქვთ მარაგში?<small>14:32 ✓✓</small></div>
+          <div className={`nr-typing nr-stage-message ${stage === 1 ? "nr-stage-visible" : ""}`} aria-label="AI წერს"><i /><i /><i /></div>
+          <div className={`nr-msg nr-ai nr-stage-message ${stage >= 2 ? "nr-stage-visible" : ""}`}><span className="nr-ai-label"><Bot className="size-3.5" />AI-ის პასუხი</span>დიახ, პროდუქტია მარაგში. ფასი არის 49₾. გსურთ შეკვეთის გაფორმება?</div>
+          <div className={`nr-evidence nr-stage-message ${stage >= 2 ? "nr-stage-visible" : ""}`}>◆ წყარო: კატალოგი · SKU AM-4412</div>
+          <div className={`nr-msg nr-customer nr-stage-message ${stage >= 3 ? "nr-stage-visible" : ""}`}>კი, გავაფორმოთ</div>
+          <div className={`nr-handoff nr-stage-message ${stage >= 3 ? "nr-stage-visible" : ""}`}>◆ ოპერატორმა ჩაიბარა საუბარი</div>
         </div>
       </div>
     </div>
