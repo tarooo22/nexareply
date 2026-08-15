@@ -23,6 +23,7 @@ function Router() {
       <Route path={"/pricing"}>{() => <PublicPage kind="pricing" />}</Route>
       <Route path={"/privacy"}>{() => <PublicPage kind="privacy" />}</Route>
       <Route path={"/terms"}>{() => <PublicPage kind="terms" />}</Route>
+      <Route path={"/data-deletion"}>{() => <PublicPage kind="dataDeletion" />}</Route>
       <Route path={"/contact"}>{() => <PublicPage kind="contact" />}</Route>
       <Route path={"/demo/:rest*"} component={DemoWorkspace} />
       <Route path={"/demo"} component={DemoWorkspace} />

@@ -3,7 +3,7 @@ import { NexaLogo } from "@/components/NexaLogo";
 import { ArrowLeft, Mail, ShieldCheck } from "lucide-react";
 import { Link } from "wouter";
 
-type PublicPageKind = "pricing" | "privacy" | "terms" | "contact";
+type PublicPageKind = "pricing" | "privacy" | "terms" | "dataDeletion" | "contact";
 
 const pricingPlans = [
   { name: "Start", price: "99", limit: "2,000 AI პასუხი", note: "პატარა გუნდისთვის", highlighted: false },
@@ -54,6 +54,15 @@ const content: Record<Exclude<PublicPageKind, "pricing">, { eyebrow: string; tit
       "Demo Mode არის პროდუქტის შეფასების სივრცე. აქ ნაჩვენები ინტეგრაციები, შეტყობინებები და ანალიტიკა სიმულირებულია, თუ კონკრეტული კავშირი აშკარად არ არის ვერიფიცირებული.",
     ],
   },
+  dataDeletion: {
+    eyebrow: "მონაცემების წაშლა",
+    title: "როგორ მოითხოვოთ NexaReply მონაცემების წაშლა",
+    body: [
+      "თუ გსურთ NexaReply ანგარიშის, ორგანიზაციის ან დაკავშირებული Facebook Page-ის მონაცემების წაშლა, გამოიყენეთ ჩვენი საკონტაქტო გვერდი და მიუთითეთ იმ ანგარიშის ელფოსტა, რომლითაც დარეგისტრირდით, ასევე ორგანიზაციის სახელი.",
+      "უსაფრთხოების მიზნით მოთხოვნას ვამოწმებთ ანგარიშის მფლობელთან. დადასტურების შემდეგ ვშლით ან ვანონიმიზებთ შესაბამის მონაცემებს, გარდა იმ მინიმალური ჩანაწერებისა, რომელთა შენახვაც აუცილებელია უსაფრთხოების, თაღლითობის პრევენციის ან სამართლებრივი ვალდებულებისთვის.",
+      "Facebook Page token არასოდეს არის ხელმისაწვდომი browser-ში. დაკავშირების მოხსნის ან დადასტურებული deletion request-ის შემდეგ იგი იშლება encrypted server-side vault-იდან შესაბამისი ორგანიზაციის ფარგლებში.",
+    ],
+  },
   contact: {
     eyebrow: "კონტაქტი",
     title: "დაგეგმეთ თქვენი Messenger გაყიდვების workflow",
@@ -69,7 +78,7 @@ export default function PublicPage({ kind }: { kind: PublicPageKind }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <MarketingHeader />
-      <main>{kind === "pricing" ? <Pricing /> : <section className="container py-14 md:py-20"><div className="mx-auto max-w-3xl rounded-3xl border border-border bg-card p-7 shadow-sm md:p-11"><div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">{kind === "contact" ? <Mail className="size-5" /> : <ShieldCheck className="size-5" />}</div><p className="mt-7 text-sm font-semibold text-primary">{item?.eyebrow}</p><h1 className="mt-3 text-3xl font-bold tracking-tight md:text-5xl">{item?.title}</h1>{item?.body.map((paragraph) => <p key={paragraph} className="mt-5 max-w-2xl text-base leading-8 text-muted-foreground">{paragraph}</p>)}<Link href="/" className="mt-9 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><ArrowLeft className="size-4" />მთავარ გვერდზე დაბრუნება</Link></div></section>}</main>
+      <main>{kind === "pricing" ? <Pricing /> : <section className="container py-14 md:py-20"><div className="mx-auto max-w-3xl rounded-3xl border border-border bg-card p-7 shadow-sm md:p-11"><div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">{kind === "contact" ? <Mail className="size-5" /> : <ShieldCheck className="size-5" />}</div><p className="mt-7 text-sm font-semibold text-primary">{item?.eyebrow}</p><h1 className="mt-3 text-3xl font-bold tracking-tight md:text-5xl">{item?.title}</h1>{item?.body.map((paragraph) => <p key={paragraph} className="mt-5 max-w-2xl text-base leading-8 text-muted-foreground">{paragraph}</p>)}{kind === "dataDeletion" ? <Link href="/contact" className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Deletion request-ის გაგზავნა</Link> : null}<Link href="/" className="mt-9 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><ArrowLeft className="size-4" />მთავარ გვერდზე დაბრუნება</Link></div></section>}</main>
       <footer className="border-t border-border"><div className="container flex flex-col gap-4 py-7 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><NexaLogo /><span>Demo Mode · Georgian-first AI sales workspace</span></div></footer>
     </div>
   );
