@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("Meta OAuth workspace resume UI", () => {
-  const source = readFileSync(new URL("../client/src/pages/AuthenticatedWorkspace.tsx", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../client/src/components/MetaConnectionWizard.tsx", import.meta.url), "utf8");
 
   it("uses a full-page authorization redirect and preserves only the opaque session reference for Page selection recovery", () => {
     expect(source).toContain("window.location.assign(result.authorizationUrl)");
