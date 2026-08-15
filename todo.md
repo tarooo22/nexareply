@@ -174,3 +174,5 @@
 - [x] Create and publish a valid NexaReply user-data deletion URL, then replace the temporary Meta Basic settings policy URLs without changing app secrets.
 - [ ] Complete the owner-controlled Meta Business Verification and any required Access Verification for the existing business portfolio.
 - [ ] Submit/enable the existing App's public-mode and required permission review only after policy URLs and verification prerequisites are complete.
+- [x] Prepare a complete Georgian project status report covering implemented functionality, architecture, Meta rollout state, limitations, and next required work.
+- [x] Create and validate a complete sanitized NexaReply source archive containing all version-controlled project files and excluding secrets, dependencies, transient logs, and build artifacts.
