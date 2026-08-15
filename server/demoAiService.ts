@@ -1,4 +1,5 @@
 import { nexareplyRepository, type WorkspaceScope } from "./nexareplyRepository";
+import { dispatchDurableQueueWakeup } from "./durableQueueDispatcher";
 
 const DEFAULT_HOLDING_REPLY = "ზუსტ დეტალს Amadeo-ის გუნდთან გადავამოწმებ და მალე დაგიბრუნდებით.";
 
@@ -77,6 +78,7 @@ export async function recordInboundDemoMessage(scope: WorkspaceScope, input: { c
   const organization = await nexareplyRepository.getOrganization(scope);
   const scheduledAt = new Date(Date.now() + (organization?.debounceSeconds ?? 10) * 1000);
   const jobId = await nexareplyRepository.scheduleConversationProcessing(scope, input.conversationId, input.inboundEventId, scheduledAt);
+  try { await dispatchDurableQueueWakeup(scheduledAt.getTime() - Date.now()); } catch { /* the persistent job remains available for configured worker recovery */ }
   await nexareplyRepository.addAudit(scope, "conversation.inbound_recorded", "conversation", String(input.conversationId), { inboundEventId: input.inboundEventId, jobId, scheduledAt: scheduledAt.toISOString() });
   return { jobId, scheduledAt };
 }

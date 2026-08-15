@@ -21,6 +21,16 @@ Body:
 
 The worker message contains only a non-sensitive execution trigger and bounded batch limit. Database jobs remain the source of truth for organization scope, leases, deduplication, retries, backoff, and dead-letter state. Cloudflare Queue consumers can delay messages, retry work, and send exhausted messages to a dead-letter queue. [1] [2]
 
+## Wakeup producer
+
+After NexaReply persists or updates a debounced job, `durableQueueDispatcher` can call the configured `CLOUDFLARE_QUEUE_DISPATCH_URL`. It HMAC-signs the exact body using the already-managed `WORKER_CALLBACK_SHARED_SECRET`, with a short timeout and no Meta/customer/tenant payload. Until the dispatch URL exists, this is intentionally a no-op: the application continues to persist jobs and does not claim a ten-second guarantee.
+
+```json
+{"delaySeconds": 10, "limit": 20}
+```
+
+The Cloudflare producer Worker must validate this signature before it sends the generic signal to `nexareply-conversation-jobs`. Its Queue consumer invokes the protected NexaReply callback shown above using a freshly signed timestamp/body pair.
+
 > A ten-second target is reportable only after the queue, consumer, worker secret, and production callback have been provisioned and observed end-to-end. Before that point, Inbox monitoring must keep `tenSecondGuarantee` false.
 
 ## References

@@ -153,9 +153,9 @@
 - [x] Implement a responsive production Inbox slice with conversation list, thread, customer context, evidence-grounded AI drafts, operator takeover/pause, tickets, and handoff states.
 - [x] Implement/document tenant-aware durable queue readiness, webhook/job idempotency, pagination/indexes, rate limits, monitoring, and a 100-organization load-test benchmark without treating it as a ceiling.
 - [x] Validate and publish the SaaS/Inbox vertical slice with tenant-isolation, repeated webhook/job dedupe, secret-boundary, TypeScript, test, production-build, responsive QA, and safe Amadeo smoke checks.
-- [ ] Audit the available durable trigger/hosting path and document the exact production mechanism required for a ten-second dequeue SLA.
-- [ ] Implement tenant-isolated durable worker execution with atomic leasing, retry backoff, lease-expiry recovery, idempotency and dead-letter visibility.
-- [ ] Add owner-facing Inbox queue observability for pending, processing, retrying, failed and dead-letter work without exposing payloads or Meta credentials.
+- [x] Audit the available durable trigger/hosting path and document the exact production mechanism required for a ten-second dequeue SLA.
+- [x] Implement tenant-isolated durable worker execution with atomic leasing, retry backoff, lease-expiry recovery, idempotency and dead-letter visibility.
+- [x] Add owner-facing Inbox queue observability for pending, processing, retrying, failed and dead-letter work without exposing payloads or Meta credentials.
 - [ ] Validate the ten-second trigger contract, repeated-event safety, horizontal-worker behavior, retry/dead-letter lifecycle, TypeScript, tests, production build and safe Amadeo metadata check.
 - [ ] Enable and authorize the selected Cloudflare integration, then provision the tenant-safe delayed queue, dead-letter queue and worker binding through the managed account.
 - [ ] Configure the protected worker-to-NexaReply callback boundary and validate the actual ten-second trigger path without exposing any provider or Meta credentials.

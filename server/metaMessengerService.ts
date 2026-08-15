@@ -4,6 +4,7 @@ import { integrationSettings } from "../drizzle/schema";
 import { getDb } from "./db";
 import { openMetaPageToken, sealMetaPageToken } from "./metaTokenVault";
 import { nexareplyRepository, type WorkspaceScope } from "./nexareplyRepository";
+import { dispatchDurableQueueWakeup } from "./durableQueueDispatcher";
 
 const META_GRAPH_API_VERSION = process.env.META_GRAPH_API_VERSION?.trim() || "v24.0";
 const META_OAUTH_TTL_MS = 10 * 60 * 1000;
@@ -416,7 +417,9 @@ export const metaMessengerService = {
           const inboundEventId = `meta:${crypto.createHash("sha256").update(key).digest("hex").slice(0, 54)}`;
           await nexareplyRepository.addMessage(scope, { conversationId: conversation.id, sender: "customer", body: event.message.text, source: "meta", inboundEventId });
           const organization = await nexareplyRepository.getOrganization(scope);
-          await nexareplyRepository.scheduleConversationProcessing(scope, conversation.id, inboundEventId, new Date(Date.now() + organization.debounceSeconds * 1000));
+          const scheduledAt = new Date(Date.now() + organization.debounceSeconds * 1000);
+          await nexareplyRepository.scheduleConversationProcessing(scope, conversation.id, inboundEventId, scheduledAt);
+          try { await dispatchDurableQueueWakeup(scheduledAt.getTime() - Date.now()); } catch { /* durable database job remains available for retry/recovery */ }
           await nexareplyRepository.updateMetaConnectionStatus(scope, { status: "connected", inbound: true });
           await nexareplyRepository.setMetaWebhookEventStatus(stored.event.id, "processed");
           processed += 1;
