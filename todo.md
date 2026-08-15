@@ -232,3 +232,8 @@
 - [x] Replace the remaining violet-heavy workspace accents with the third-reference white/pale-aqua/teal-green visual system while preserving restrained violet only where intended.
 - [x] Refine Overview checklist, sidebar active state, page header, metrics, and operational cards to match the third reference's airy hierarchy and dark text.
 - [x] Run responsive visual QA, TypeScript, full Vitest, production build, and checkpoint the exact third-reference workspace refinement.
+
+- [x] Audit Demo Mode settings sections against real app navigation, procedures, and owner/operator access rules.
+- [x] Add a real-app settings/navigation area that exposes the already-supported organization, AI assistant, notifications, integration, members, and billing surfaces without fake data or secret exposure.
+- [x] Match the Demo settings visual density with real-state, loading, empty, and permission-gated states in the authenticated app.
+- [x] Run tenant/auth regression tests, responsive visual QA, TypeScript, production build, and checkpoint the settings parity update.

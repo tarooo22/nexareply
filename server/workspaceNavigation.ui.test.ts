@@ -9,8 +9,10 @@ describe("WorkspaceNav membership-driven UI", () => {
     const operatorMarkup = renderToStaticMarkup(createElement(WorkspaceNav, { role: "operator", active: "overview", onSelect: () => undefined }));
     expect(ownerMarkup).toContain("წევრები");
     expect(ownerMarkup).toContain("ინტეგრაციები");
+    expect(ownerMarkup).toContain("პარამეტრები");
     expect(operatorMarkup).not.toContain("წევრები");
     expect(operatorMarkup).not.toContain("ინტეგრაციები");
+    expect(operatorMarkup).not.toContain("პარამეტრები");
   });
 
   it("uses a grouped vertical navigation that can be placed inside an accessible mobile drawer", () => {

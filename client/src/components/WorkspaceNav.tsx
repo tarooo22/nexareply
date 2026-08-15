@@ -14,6 +14,7 @@ export const workspaceNavigation = [
   { id: "notifications", label: "შეტყობინებები", icon: Bell },
   { id: "members", label: "წევრები", icon: UsersRound, ownerOnly: true },
   { id: "integration", label: "ინტეგრაციები", icon: Settings2, ownerOnly: true },
+  { id: "settings", label: "პარამეტრები", icon: Settings2, ownerOnly: true },
 ] as const;
 
 const navigationGroups: Array<{ label: string; ids: string[] }> = [
@@ -21,7 +22,7 @@ const navigationGroups: Array<{ label: string; ids: string[] }> = [
   { label: "ცოდნა და გაყიდვები", ids: ["catalog", "knowledge"] },
   { label: "ავტომატიზაცია", ids: ["assistant", "tickets"] },
   { label: "მონიტორინგი", ids: ["analytics", "notifications"] },
-  { label: "მართვა", ids: ["integration", "members"] },
+  { label: "მართვა", ids: ["settings", "integration", "members"] },
 ];
 
 export function visibleWorkspaceNavigation(role: WorkspaceRole) {

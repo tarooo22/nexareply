@@ -4,7 +4,7 @@ import { WorkspaceNav, visibleWorkspaceNavigation } from "@/components/Workspace
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useTheme } from "@/contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
-import { WorkspaceAlertsScreen, WorkspaceAnalyticsScreen, WorkspaceAssistantScreen, WorkspaceCatalogScreen, WorkspaceInboxScreen, WorkspaceKnowledgeComposerScreen, WorkspaceOverviewScreen, WorkspaceTicketsScreen } from "@/pages/workspace/AmadeoWorkspaceScreens";
+import { WorkspaceAlertsScreen, WorkspaceAnalyticsScreen, WorkspaceAssistantScreen, WorkspaceCatalogScreen, WorkspaceInboxScreen, WorkspaceKnowledgeComposerScreen, WorkspaceOverviewScreen, WorkspaceSettingsScreen, WorkspaceTicketsScreen } from "@/pages/workspace/AmadeoWorkspaceScreens";
 import { ArrowRight, Building2, ChevronDown, Loader2, LockKeyhole, Menu, Monitor, Moon, Plus, RefreshCw, ShieldCheck, Sun, UserPlus, UsersRound } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
@@ -111,6 +111,7 @@ export default function AuthenticatedWorkspace() {
     if (currentSection === "analytics") return <WorkspaceAnalyticsScreen {...props} />;
     if (currentSection === "notifications") return <WorkspaceAlertsScreen {...props} />;
     if (currentSection === "integration" && role === "owner") return <MetaConnectionWizard organizationId={organization.id} />;
+    if (currentSection === "settings" && role === "owner") return <WorkspaceSettingsScreen organizationId={organization.id} role={role} onNavigate={setSection} />;
     if (currentSection === "members" && role === "owner") return <MembersPanel organizationId={organization.id} />;
     return <WorkspaceOverviewScreen {...props} onNavigate={setSection} />;
   }, [currentSection, organization, role]);

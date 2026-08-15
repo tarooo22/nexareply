@@ -2021,6 +2021,30 @@ export function WorkspaceKnowledgeComposerScreen({
   );
 }
 
+export function WorkspaceSettingsScreen({ organizationId, role, onNavigate }: OverviewProps) {
+  const entitlements = trpc.nexareply.workspace.entitlements.useQuery({ organizationId });
+  const assistant = trpc.nexareply.workspace.assistant.settings.useQuery({ organizationId });
+  const alerts = trpc.nexareply.workspace.notifications.list.useQuery({ organizationId });
+  const meta = trpc.nexareply.workspace.owner.meta.status.useQuery({ organizationId }, { enabled: role === "owner" });
+  if (entitlements.isLoading || assistant.isLoading || alerts.isLoading || meta.isLoading) {
+    return <div className="mt-5"><StatePanel kind="loading" title="პარამეტრები იტვირთება" description="Workspace-ის რეალური AI, არხის, alert და plan მდგომარეობა მოწმდება." /></div>;
+  }
+  const unread = alerts.data?.filter(item => !item.readAt).length ?? 0;
+  const cards = [
+    { icon: Bot, title: "AI პასუხის წესები", detail: assistant.data?.aiPersona || "პერსონა ჯერ არ არის კონფიგურირებული", status: assistant.data?.aiTone || "უსაფრთხო fallback", action: "assistant", actionLabel: "AI კონსულტანტის გახსნა" },
+    { icon: ShieldCheck, title: "Meta Messenger", detail: role === "owner" ? (meta.data?.page?.name ?? "Page არ არის დაკავშირებული") : "მდგომარეობას owner მართავს", status: role === "owner" && meta.data?.status === "connected" ? "დაკავშირებულია" : "შემოწმება საჭიროა", action: "integration", actionLabel: "ინტეგრაციის ნახვა" },
+    { icon: BellRing, title: "Owner notifications", detail: `${unread} წაუკითხავი შეტყობინება`, status: "in-app alerts", action: "notifications", actionLabel: "შეტყობინებების გახსნა" },
+    { icon: UserRoundCheck, title: "წევრები და წვდომა", detail: `${entitlements.data?.memberLimit ?? 0} წევრის ლიმიტი ამ plan-ზე`, status: "owner-only მართვა", action: "members", actionLabel: "წევრების მართვა" },
+  ];
+  return <div className="mt-5 space-y-5">
+    <section className="nr-onboarding-card rounded-3xl border border-border bg-card p-6 shadow-sm">
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start"><div><p className="text-sm font-bold text-primary">ორგანიზაციის მართვა</p><h2 className="mt-1 text-2xl font-black">პარამეტრები და onboarding</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">აქ ნახავთ მხოლოდ ამ workspace-ის რეალურ კონფიგურაციას. Demo-ის მსგავსად ერთ სივრცეშია თავმოყრილი AI, Meta, alerts, წევრები და plan-ის მდგომარეობა; საიდუმლო token-ები არასოდეს ჩანს.</p></div><span className="rounded-full bg-secondary px-3 py-1.5 text-xs font-bold text-secondary-foreground">{entitlements.data?.planCode ?? "plan"}</span></div>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">{cards.map(card => { const Icon = card.icon; return <article key={card.title} className="rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-secondary text-primary"><Icon className="size-5" /></span><div><h3 className="font-black">{card.title}</h3><p className="mt-1 text-xs text-muted-foreground">{card.status}</p></div></div><span className="size-2 rounded-full bg-emerald-500" aria-label="მონაცემი ხელმისაწვდომია" /></div><p className="mt-4 min-h-10 text-sm leading-6 text-muted-foreground">{card.detail}</p><button type="button" onClick={() => onNavigate(card.action)} className="mt-4 text-xs font-black text-primary underline-offset-4 hover:underline">{card.actionLabel} →</button></article>; })}</div>
+    </section>
+    <section className="nr-overview-panel rounded-3xl border border-border bg-card p-6 shadow-sm"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-primary">გეგმა და გამოყენება</p><h3 className="mt-1 text-xl font-black">{entitlements.data?.subscriptionStatus ?? "მდგომარეობა უცნობია"}</h3><p className="mt-2 text-sm text-muted-foreground">AI automation: {entitlements.data?.aiAutomation ? "ჩართულია" : "ამ ეტაპზე გამორთულია"} · channels: {entitlements.data?.channels ?? 0} · წევრების ლიმიტი: {entitlements.data?.memberLimit ?? 0}</p></div><span className="rounded-xl bg-secondary px-3 py-2 text-xs font-bold text-secondary-foreground">server-side entitlement</span></div></section>
+  </div>;
+}
+
 export function WorkspaceAssistantScreen({
   organizationId,
   role,
