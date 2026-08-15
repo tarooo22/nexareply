@@ -77,7 +77,7 @@ function MiniMetric({
   accent?: string;
 }) {
   return (
-    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <article className="group rounded-2xl border border-border/80 bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
       <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </p>
@@ -367,7 +367,7 @@ export function WorkspaceOverviewScreen({
         />
       </section>
       <section className="grid gap-5 xl:grid-cols-[1.3fr_.7fr]">
-        <article className="rounded-2xl border border-border bg-card p-6">
+        <article className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-bold text-primary">
@@ -403,13 +403,13 @@ export function WorkspaceOverviewScreen({
             ticket-ს.
           </p>
         </article>
-        <article className="rounded-2xl border border-border bg-card p-6">
+        <article className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold text-primary">Messenger Page</p>
               <h2 className="mt-1 font-black">კავშირის მდგომარეობა</h2>
             </div>
-            <ShieldCheck className="size-5 text-emerald-500" />
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-600"><ShieldCheck className="size-4" /> უსაფრთხო კავშირი</span>
           </div>
           {role === "owner" ? (
             <div className="mt-5 rounded-xl border border-border bg-secondary/35 p-4">
@@ -911,7 +911,7 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
   return (
     <div className="mt-5 space-y-5">
       <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
-        <article className="rounded-2xl border border-border bg-card p-6">
+        <article className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-bold text-primary">Product catalog</p>
@@ -2662,10 +2662,10 @@ export function WorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
     );
   return (
     <div className="mt-5 space-y-4">
-      <section className="flex flex-col justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/[.045] p-4 sm:flex-row sm:items-center">
+      <section className="flex flex-col justify-between gap-3 rounded-3xl border border-primary/20 bg-primary/[.045] p-4 shadow-sm sm:flex-row sm:items-center">
         <div>
           <p className="text-sm font-bold text-primary">
-            Production Inbox slice
+            Inbox-ის სამუშაო რეჟიმი
           </p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             Draft მხოლოდ დამოწმებულ catalog/knowledge evidence-ზე იქმნება.
@@ -2681,7 +2681,7 @@ export function WorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
           განახლება
         </button>
       </section>
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:grid lg:min-h-[680px] lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_290px]">
+      <div className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-sm lg:grid lg:min-h-[680px] lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_290px]">
         <section
           className={`border-b border-border bg-secondary/20 lg:border-r lg:border-b-0 ${mobileThread ? "hidden lg:block" : "block"}`}
           aria-label="საუბრის სია"

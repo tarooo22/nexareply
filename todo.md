@@ -184,6 +184,6 @@
 
 - [x] Audit the supplied auth, desktop/mobile workspace, Overview, Inbox screenshots and redesign progress log against the current live UI.
 - [x] Apply compatible authentication and operational-workspace visual refinements without changing auth, Meta, tenant, queue, or tRPC contracts.
-- [ ] Refine Overview and Inbox density, status hierarchy, responsive behavior, and empty/loading states to match the supplied direction.
+- [x] Refine Overview and Inbox density, status hierarchy, responsive behavior, and empty/loading states to match the supplied direction.
 - [x] Verify the analytics placeholder script and seed-techzone export mismatch, fixing only confirmed production issues.
-- [ ] Run responsive screenshots, accessibility checks, TypeScript, full Vitest, production build, and save a redesign checkpoint.
+- [x] Run responsive screenshots, accessibility checks, TypeScript, full Vitest, production build, and save a redesign checkpoint.
