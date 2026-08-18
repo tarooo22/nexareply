@@ -247,3 +247,7 @@
 - [x] Add an Alita-style manual setup surface with webhook URL, server-managed verify-token state, Georgian setup instructions, Page ID/token fields, and explicit submit feedback.
 - [x] Preserve owner-only access, tenant-scoped encrypted vault persistence, token redaction, and existing OAuth/Meta contracts.
 - [x] Run visual/security/tenant/Meta regression QA, TypeScript, full Vitest, production build, and checkpoint the manual setup page.
+
+- [x] Enable the Alita-style manual Meta setup flow for authenticated workspace owners while retaining the server-side security boundary.
+- [x] Update manual-flow regression coverage for enabled-by-default owner-only behavior and secure token handling.
+- [x] Run Meta, tenant-isolation, secret-boundary, responsive QA, TypeScript, full Vitest, production build, and checkpoint the enabled manual flow.

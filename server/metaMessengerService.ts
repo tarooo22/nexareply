@@ -68,7 +68,10 @@ function readMetaLoginConfigId() {
 }
 
 function isManualMetaSetupEnabled() {
-  return process.env.ENABLE_META_MANUAL_SETUP?.trim().toLowerCase() === "true";
+  // The manual flow is owner-only at the router boundary. Keep an explicit
+  // false value as an emergency kill-switch, but make the Alita-style setup
+  // available by default so owners can actually use the secure fallback.
+  return process.env.ENABLE_META_MANUAL_SETUP?.trim().toLowerCase() !== "false";
 }
 
 // `META_PAGE_ACCESS_TOKEN` is retained only as an optional, legacy pilot fallback.

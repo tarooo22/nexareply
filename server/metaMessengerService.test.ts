@@ -267,8 +267,8 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(url.searchParams.get("scope")).toContain("pages_messaging");
   });
 
-  it("rejects manual Page credentials while manual setup is disabled", async () => {
-    delete process.env.ENABLE_META_MANUAL_SETUP;
+  it("rejects manual Page credentials while the explicit manual setup kill-switch is enabled", async () => {
+    process.env.ENABLE_META_MANUAL_SETUP = "false";
     const graph = vi.fn();
     vi.stubGlobal("fetch", graph);
     await expect(metaMessengerService.connectManualPage(scope, { pageId: "123456789", pageAccessToken: "manual-page-token-must-not-be-accepted-when-disabled" })).rejects.toThrow("Manual Meta setup is disabled.");
