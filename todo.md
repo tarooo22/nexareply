@@ -237,3 +237,13 @@
 - [x] Add a real-app settings/navigation area that exposes the already-supported organization, AI assistant, notifications, integration, members, and billing surfaces without fake data or secret exposure.
 - [x] Match the Demo settings visual density with real-state, loading, empty, and permission-gated states in the authenticated app.
 - [x] Run tenant/auth regression tests, responsive visual QA, TypeScript, production build, and checkpoint the settings parity update.
+
+- [x] Audit the existing manual Meta Page/token path and confirm current production gating, vault, and tenant boundaries.
+- [x] Define a secure Alita-style manual Page connection flow using Page ID plus Page Access Token, with clear owner instructions and App Review limitations.
+- [x] Implement or scope server-side token/Page validation, webhook subscription, encrypted persistence, token redaction, and owner-facing success/error/revoke states.
+- [x] Run secret-boundary, tenant-isolation, Meta regression, responsive QA, TypeScript, full Vitest, production build, and checkpoint the manual connection fallback.
+
+- [x] Audit the current Meta wizard/manual flow against the supplied Alita-style reference layout.
+- [x] Add an Alita-style manual setup surface with webhook URL, server-managed verify-token state, Georgian setup instructions, Page ID/token fields, and explicit submit feedback.
+- [x] Preserve owner-only access, tenant-scoped encrypted vault persistence, token redaction, and existing OAuth/Meta contracts.
+- [x] Run visual/security/tenant/Meta regression QA, TypeScript, full Vitest, production build, and checkpoint the manual setup page.

@@ -17,7 +17,11 @@ describe("Meta OAuth workspace resume UI", () => {
 
   it("keeps manual setup behind a server-provided feature flag and avoids token input in the default OAuth path", () => {
     expect(source).toContain("manualSetupEnabled");
-    expect(source).toContain("manualSetupEnabled ? <form onSubmit={submitManual}");
+    expect(source).toContain("manualSetupEnabled ? (");
+    expect(source).toContain("Facebook Webhook კონფიგურაცია");
+    expect(source).toContain("Webhook URL");
+    expect(source).toContain("Facebook გვერდის ID");
+    expect(source).toContain("Facebook Page Access Token");
     expect(source).toContain("ამ გარემოში გამორთულია");
     expect(source).toContain("Facebook-ით ავტორიზაცია");
     expect(source).toContain("disconnect.mutate");
