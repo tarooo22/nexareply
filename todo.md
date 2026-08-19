@@ -251,3 +251,7 @@
 - [x] Enable the Alita-style manual Meta setup flow for authenticated workspace owners while retaining the server-side security boundary.
 - [x] Update manual-flow regression coverage for enabled-by-default owner-only behavior and secure token handling.
 - [x] Run Meta, tenant-isolation, secret-boundary, responsive QA, TypeScript, full Vitest, production build, and checkpoint the enabled manual flow.
+
+- [x] Add an owner-only Verify Token reveal/copy query and reference-aligned UI field for Meta webhook configuration.
+- [x] Preserve Page Access Token redaction, tenant owner authorization, no browser persistence, and explicit manual setup kill-switch behavior.
+- [x] Add service and router authorization regression coverage; run TypeScript, full Vitest, production build, and responsive route QA.

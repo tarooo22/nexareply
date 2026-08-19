@@ -280,6 +280,12 @@ export const metaMessengerService = {
     return isManualMetaSetupEnabled();
   },
 
+  getWebhookVerifyToken() {
+    if (!isManualMetaSetupEnabled()) return { enabled: false as const, verifyToken: null };
+    const verifyToken = readWebhookVerifyToken();
+    return verifyToken ? { enabled: true as const, verifyToken } : { enabled: false as const, verifyToken: null };
+  },
+
   createOAuthStart(scope: WorkspaceScope) {
     const config = readMetaOAuthConfig();
     if (!config) return { configured: false as const, authorizationUrl: null, sessionId: null };

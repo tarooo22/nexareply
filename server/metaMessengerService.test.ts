@@ -96,6 +96,13 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(JSON.stringify(response)).not.toContain("manual-page-token-must-never-leak-to-the-browser-response");
   });
 
+  it("returns the managed Verify Token only through the explicit owner setup getter", () => {
+    process.env.META_VERIFY_TOKEN = "owner-visible-verify-token";
+    expect(metaMessengerService.getWebhookVerifyToken()).toEqual({ enabled: true, verifyToken: "owner-visible-verify-token" });
+    process.env.ENABLE_META_MANUAL_SETUP = "false";
+    expect(metaMessengerService.getWebhookVerifyToken()).toEqual({ enabled: false, verifyToken: null });
+  });
+
   it("validates the webhook challenge and X-Hub-Signature-256 over the raw request body", () => {
     const rawBody = Buffer.from('{"object":"page","entry":[]}');
     const signature = `sha256=${crypto.createHmac("sha256", process.env.META_APP_SECRET!).update(rawBody).digest("hex")}`;
