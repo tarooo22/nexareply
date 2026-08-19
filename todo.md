@@ -263,3 +263,7 @@
 - [x] Add server-only App Secret Proof to manual Page identity validation and webhook subscription requests.
 - [x] Cover proof-bearing Graph requests, provider-error redaction, tenant isolation, and existing OAuth compatibility with regression tests.
 - [x] Run TypeScript, full Vitest, production build, responsive QA, deployment retry, and checkpoint the webhook subscription fix.
+
+- [ ] Verify whether the App Secret Proof webhook fix is active in the live deployment and inspect safe production diagnostics for the repeated manual connection failure.
+- [ ] Resolve the platform deployment retry and confirm the live manual Page subscription request includes server-only App Secret Proof.
+- [ ] Add only safe remaining Meta-side diagnostics, run regression QA, and record the exact next recovery action.
