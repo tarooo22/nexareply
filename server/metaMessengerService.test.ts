@@ -96,6 +96,14 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(JSON.stringify(response)).not.toContain("manual-page-token-must-never-leak-to-the-browser-response");
   });
 
+  it("classifies a provider token failure without returning provider-sensitive text", async () => {
+    process.env.ENABLE_META_MANUAL_SETUP = "true";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: { message: "Invalid OAuth access token: secret-details-must-not-leak" } }) }));
+    const response = await metaMessengerService.connectManualPage(scope, { pageId: "123456789", pageAccessToken: "token-used-only-inside-server-request" });
+    expect(response).toEqual({ configured: true, status: "verification_failed", reason: "invalid_token" });
+    expect(JSON.stringify(response)).not.toContain("secret-details-must-not-leak");
+  });
+
   it("returns the managed Verify Token only through the explicit owner setup getter", () => {
     process.env.META_VERIFY_TOKEN = "owner-visible-verify-token";
     expect(metaMessengerService.getWebhookVerifyToken()).toEqual({ enabled: true, verifyToken: "owner-visible-verify-token" });

@@ -143,6 +143,17 @@ function signedRequestConfirmationCode(userId: string, issuedAt: number | undefi
   return crypto.createHash("sha256").update(`${userId}:${issuedAt ?? ""}:${appSecret}`).digest("hex").slice(0, 20);
 }
 
+type ManualMetaFailureReason = "page_not_found" | "invalid_token" | "missing_permissions" | "webhook_subscription" | "unknown";
+
+function classifyManualMetaFailure(error: unknown, stage: "page" | "webhook"): ManualMetaFailureReason {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  if (stage === "webhook" || message.includes("subscrib")) return "webhook_subscription";
+  if (message.includes("invalid oauth") || message.includes("access token") || message.includes("session has expired") || message.includes("oauth")) return "invalid_token";
+  if (message.includes("permission") || message.includes("not authorized") || message.includes("requires") || message.includes("(#10)")) return "missing_permissions";
+  if (message.includes("does not exist") || message.includes("unsupported get request") || message.includes("invalid id") || message.includes("object with id")) return "page_not_found";
+  return "unknown";
+}
+
 function safeProviderError(error: unknown) {
   const message = error instanceof Error ? error.message : "Unknown Meta request failure";
   return message.slice(0, 500);
@@ -402,6 +413,7 @@ export const metaMessengerService = {
     const pageId = input.pageId.trim();
     if (!isManualMetaSetupEnabled()) throw new Error("Manual Meta setup is disabled.");
     const pageAccessToken = input.pageAccessToken.trim();
+    let validationStage: "page" | "webhook" = "page";
     try {
       // Meta validates both Page ownership and the token's scopes here. The plaintext
       // credential exists only in this server request and is never included in an audit
@@ -410,6 +422,7 @@ export const metaMessengerService = {
         accessToken: pageAccessToken,
       });
       if (page.id !== pageId || !page.name) throw new Error("Page identity could not be verified.");
+      validationStage = "webhook";
       const subscription = await graphRequest<{ success?: boolean }>(`${encodeURIComponent(pageId)}/subscribed_apps`, {
         method: "POST",
         accessToken: pageAccessToken,
@@ -418,10 +431,9 @@ export const metaMessengerService = {
       if (subscription.success === false) throw new Error("Webhook subscription could not be enabled.");
       await persistTenantPageConnection(scope, { id: page.id, name: page.name }, sealMetaPageToken(pageAccessToken));
       return { configured: true as const, status: "connected" as const, page: { id: page.id, name: page.name } };
-    } catch {
-      // Do not overwrite a healthy existing connection or surface provider diagnostics
-      // that may contain sensitive request context.
-      return { configured: true as const, status: "verification_failed" as const };
+    } catch (error) {
+      // Return only a safe category; provider text may contain request context.
+      return { configured: true as const, status: "verification_failed" as const, reason: classifyManualMetaFailure(error, validationStage) };
     }
   },
 

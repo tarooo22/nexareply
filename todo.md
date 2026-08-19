@@ -255,3 +255,7 @@
 - [x] Add an owner-only Verify Token reveal/copy query and reference-aligned UI field for Meta webhook configuration.
 - [x] Preserve Page Access Token redaction, tenant owner authorization, no browser persistence, and explicit manual setup kill-switch behavior.
 - [x] Add service and router authorization regression coverage; run TypeScript, full Vitest, production build, and responsive route QA.
+
+- [x] Diagnose and classify the failed manual Meta Page validation without exposing Page Access Token or provider-sensitive details.
+- [x] Show actionable Georgian recovery guidance for Page mismatch, invalid/expired token, missing permissions, and webhook subscription failure.
+- [x] Add regression coverage and run full Meta/security/tenant QA, TypeScript, build, responsive QA, and checkpoint.

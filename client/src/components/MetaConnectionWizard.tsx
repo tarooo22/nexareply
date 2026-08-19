@@ -25,6 +25,14 @@ function StageProgress({ stage }: { stage: Stage }) {
   </ol>;
 }
 
+function manualConnectionErrorMessage(reason?: string) {
+  if (reason === "page_not_found") return "ეს Page ID Meta-ში ვერ მოიძებნა. გადაამოწმე, რომ Page ID სწორია და token სწორედ იმავე Page-იდან არის აღებული.";
+  if (reason === "invalid_token") return "ეს Access Token ვადაგასულია, გაუქმებულია ან User Token-ია. შექმენი ახალი Page Access Token Graph API Explorer-იდან.";
+  if (reason === "missing_permissions") return "Token-ს აკლია Messenger უფლებები. შექმენი ახალი token pages_show_list, pages_manage_metadata და pages_messaging უფლებების დადასტურების შემდეგ.";
+  if (reason === "webhook_subscription") return "Page დადასტურდა, მაგრამ webhook subscription ვერ ჩაირთო. გადაამოწმე pages_manage_metadata/pages_messaging და Page-ზე Full control.";
+  return "Page ID ან Access Token ვერ დადასტურდა. გამოიყენე ერთი და იმავე Page-ის id და access_token /me/accounts პასუხიდან.";
+}
+
 function Feedback({ title, body, tone = "neutral" }: { title: string; body: string; tone?: "neutral" | "success" | "warning" }) {
   const tones = {
     neutral: "border-border bg-secondary/35",
@@ -160,7 +168,7 @@ export function MetaConnectionWizard({ organizationId }: { organizationId: numbe
       onSuccess: (result) => {
         setPageAccessToken("");
         if (result.status !== "connected") {
-          setError("Page ID ან Access Token ვერ დადასტურდა. დარწმუნდი, რომ token ეკუთვნის ამავე გვერდს და აქვს Messenger უფლებები.");
+          setError(manualConnectionErrorMessage(result.reason));
           return;
         }
         setStage("success");
