@@ -259,3 +259,7 @@
 - [x] Diagnose and classify the failed manual Meta Page validation without exposing Page Access Token or provider-sensitive details.
 - [x] Show actionable Georgian recovery guidance for Page mismatch, invalid/expired token, missing permissions, and webhook subscription failure.
 - [x] Add regression coverage and run full Meta/security/tenant QA, TypeScript, build, responsive QA, and checkpoint.
+
+- [x] Add server-only App Secret Proof to manual Page identity validation and webhook subscription requests.
+- [x] Cover proof-bearing Graph requests, provider-error redaction, tenant isolation, and existing OAuth compatibility with regression tests.
+- [x] Run TypeScript, full Vitest, production build, responsive QA, deployment retry, and checkpoint the webhook subscription fix.

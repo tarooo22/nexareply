@@ -78,9 +78,10 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     process.env.ENABLE_META_MANUAL_SETUP = "true";
     const vault = vi.spyOn(nexareplyRepository, "upsertMetaTokenVault").mockResolvedValue(undefined);
     const connection = vi.spyOn(nexareplyRepository, "upsertMetaConnection").mockResolvedValue(undefined);
-    vi.stubGlobal("fetch", vi.fn()
+    const graph = vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ id: "123456789", name: "Merchant Page" }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) }));
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) });
+    vi.stubGlobal("fetch", graph);
 
     const response = await metaMessengerService.connectManualPage(scope, {
       pageId: "123456789",
@@ -94,6 +95,10 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     }));
     expect(connection).toHaveBeenCalledWith(scope, expect.objectContaining({ pageId: "123456789", pageName: "Merchant Page", credentialMode: "tenant_vault" }));
     expect(JSON.stringify(response)).not.toContain("manual-page-token-must-never-leak-to-the-browser-response");
+    const expectedProof = crypto.createHmac("sha256", "app-secret").update("manual-page-token-must-never-leak-to-the-browser-response").digest("hex");
+    for (const [requestUrl] of graph.mock.calls) {
+      expect(new URL(String(requestUrl)).searchParams.get("appsecret_proof")).toBe(expectedProof);
+    }
   });
 
   it("classifies a provider token failure without returning provider-sensitive text", async () => {

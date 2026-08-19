@@ -159,9 +159,10 @@ function safeProviderError(error: unknown) {
   return message.slice(0, 500);
 }
 
-async function graphRequest<T>(path: string, input: { method?: "GET" | "POST" | "DELETE"; accessToken?: string; body?: Record<string, unknown> } = {}) {
+async function graphRequest<T>(path: string, input: { method?: "GET" | "POST" | "DELETE"; accessToken?: string; appSecretProof?: string; body?: Record<string, unknown> } = {}) {
   const url = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${path.replace(/^\//, "")}`);
   if (input.accessToken) url.searchParams.set("access_token", input.accessToken);
+  if (input.appSecretProof) url.searchParams.set("appsecret_proof", input.appSecretProof);
   const response = await fetch(url, {
     method: input.method ?? "GET",
     headers: input.body ? { "Content-Type": "application/json" } : undefined,
@@ -409,10 +410,12 @@ export const metaMessengerService = {
   },
 
   async connectManualPage(scope: WorkspaceScope, input: { pageId: string; pageAccessToken: string }) {
-    if (!readMetaOAuthConfig()) return { configured: false as const, status: "unconfigured" as const };
+    const config = readMetaOAuthConfig();
+    if (!config) return { configured: false as const, status: "unconfigured" as const };
     const pageId = input.pageId.trim();
     if (!isManualMetaSetupEnabled()) throw new Error("Manual Meta setup is disabled.");
     const pageAccessToken = input.pageAccessToken.trim();
+    const pageAppSecretProof = appSecretProof(pageAccessToken, config.appSecret);
     let validationStage: "page" | "webhook" = "page";
     try {
       // Meta validates both Page ownership and the token's scopes here. The plaintext
@@ -420,12 +423,14 @@ export const metaMessengerService = {
       // record, tRPC response, browser state, or provider error shown to the user.
       const page = await graphRequest<{ id?: string; name?: string }>(`${encodeURIComponent(pageId)}?fields=id,name`, {
         accessToken: pageAccessToken,
+        appSecretProof: pageAppSecretProof,
       });
       if (page.id !== pageId || !page.name) throw new Error("Page identity could not be verified.");
       validationStage = "webhook";
       const subscription = await graphRequest<{ success?: boolean }>(`${encodeURIComponent(pageId)}/subscribed_apps`, {
         method: "POST",
         accessToken: pageAccessToken,
+        appSecretProof: pageAppSecretProof,
         body: { subscribed_fields: "messages,message_deliveries,message_echoes,messaging_postbacks" },
       });
       if (subscription.success === false) throw new Error("Webhook subscription could not be enabled.");
