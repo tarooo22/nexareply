@@ -267,3 +267,7 @@
 - [ ] Verify whether the App Secret Proof webhook fix is active in the live deployment and inspect safe production diagnostics for the repeated manual connection failure.
 - [ ] Resolve the platform deployment retry and confirm the live manual Page subscription request includes server-only App Secret Proof.
 - [ ] Add only safe remaining Meta-side diagnostics, run regression QA, and record the exact next recovery action.
+
+- [x] Verify the Meta `/{page-id}/subscribed_apps` request encoding contract against the current server implementation.
+- [x] Correct manual and OAuth Page subscription requests to the required server-side encoding while preserving App Secret Proof and token redaction.
+- [ ] Add request-contract regression coverage, run full QA, publish the fix, and retest the manual connection.

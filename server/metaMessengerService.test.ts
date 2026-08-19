@@ -99,6 +99,10 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     for (const [requestUrl] of graph.mock.calls) {
       expect(new URL(String(requestUrl)).searchParams.get("appsecret_proof")).toBe(expectedProof);
     }
+    const [, subscriptionRequest] = graph.mock.calls[1];
+    expect(subscriptionRequest).toEqual(expect.objectContaining({ headers: { "Content-Type": "application/x-www-form-urlencoded" } }));
+    expect(subscriptionRequest?.body).toBeInstanceOf(URLSearchParams);
+    expect((subscriptionRequest?.body as URLSearchParams).get("subscribed_fields")).toBe("messages,message_deliveries,message_echoes,messaging_postbacks");
   });
 
   it("classifies a provider token failure without returning provider-sensitive text", async () => {

@@ -159,14 +159,15 @@ function safeProviderError(error: unknown) {
   return message.slice(0, 500);
 }
 
-async function graphRequest<T>(path: string, input: { method?: "GET" | "POST" | "DELETE"; accessToken?: string; appSecretProof?: string; body?: Record<string, unknown> } = {}) {
+async function graphRequest<T>(path: string, input: { method?: "GET" | "POST" | "DELETE"; accessToken?: string; appSecretProof?: string; body?: Record<string, unknown>; bodyEncoding?: "json" | "form" } = {}) {
   const url = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${path.replace(/^\//, "")}`);
   if (input.accessToken) url.searchParams.set("access_token", input.accessToken);
   if (input.appSecretProof) url.searchParams.set("appsecret_proof", input.appSecretProof);
+  const formBody = input.body && input.bodyEncoding === "form" ? new URLSearchParams(Object.entries(input.body).map(([key, value]) => [key, String(value)])) : null;
   const response = await fetch(url, {
     method: input.method ?? "GET",
-    headers: input.body ? { "Content-Type": "application/json" } : undefined,
-    body: input.body ? JSON.stringify(input.body) : undefined,
+    headers: input.body ? { "Content-Type": formBody ? "application/x-www-form-urlencoded" : "application/json" } : undefined,
+    body: formBody ?? (input.body ? JSON.stringify(input.body) : undefined),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -383,15 +384,20 @@ export const metaMessengerService = {
     if (!selected) throw new Error("Selected Meta Page is not part of this authorization session.");
     const staged = await nexareplyRepository.getStagedMetaPageToken(scope, session.id, selected.id);
     if (!staged) throw new Error("Selected Meta Page credential has expired. Start authorization again.");
+    const selectedPageToken = openMetaPageToken(staged.encryptedPageToken);
+    const selectedPageAppSecretProof = appSecretProof(selectedPageToken, config.appSecret);
     try {
       const verifiedPage = await graphRequest<{ id?: string; name?: string }>(`${encodeURIComponent(selected.id)}?fields=id,name`, {
-        accessToken: openMetaPageToken(staged.encryptedPageToken),
+        accessToken: selectedPageToken,
+        appSecretProof: selectedPageAppSecretProof,
       });
       if (verifiedPage.id !== selected.id || !verifiedPage.name) throw new Error("Page identity could not be verified.");
       await graphRequest<{ success?: boolean }>(`${selected.id}/subscribed_apps`, {
         method: "POST",
-        accessToken: openMetaPageToken(staged.encryptedPageToken),
+        accessToken: selectedPageToken,
+        appSecretProof: selectedPageAppSecretProof,
         body: { subscribed_fields: "messages,message_deliveries,message_echoes,messaging_postbacks" },
+        bodyEncoding: "form",
       });
       await persistTenantPageConnection(scope, { id: verifiedPage.id, name: verifiedPage.name }, staged.encryptedPageToken);
       await nexareplyRepository.completeMetaOauthSession(scope, session.id);
@@ -432,6 +438,7 @@ export const metaMessengerService = {
         accessToken: pageAccessToken,
         appSecretProof: pageAppSecretProof,
         body: { subscribed_fields: "messages,message_deliveries,message_echoes,messaging_postbacks" },
+        bodyEncoding: "form",
       });
       if (subscription.success === false) throw new Error("Webhook subscription could not be enabled.");
       await persistTenantPageConnection(scope, { id: page.id, name: page.name }, sealMetaPageToken(pageAccessToken));
