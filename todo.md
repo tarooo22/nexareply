@@ -276,26 +276,27 @@
 - [ ] Prepare a safe owner-approved migration path that preserves the existing Amadeo connection while adopting any new Meta App credentials.
 - [ ] Apply authorized managed-secret updates only after confirmation, then run Meta/security regression QA and retry the manual connection.
 
-- [ ] Guide creation of a fresh new-App Page Access Token with verified pages_show_list, pages_manage_metadata, and pages_messaging grants.
-- [ ] Verify manual Page connection and webhook subscription after the required Messenger-grant token is supplied.
+- [x] Guide creation of a fresh new-App Page Access Token with verified pages_show_list, pages_manage_metadata, and pages_messaging grants.
+- [x] Verify manual Page connection and webhook subscription after the required Messenger-grant token is supplied.
 - [ ] Record any Amadeo reconnection impact and complete migration regression QA after the new-App connection succeeds.
 
-- [ ] Audit whether valid Messenger-generated Page tokens are incorrectly rejected by the current token scope validation.
-- [ ] Correct any over-strict Page token scope classification while retaining Page identity, tenant, and webhook checks.
-- [ ] Add realistic Messenger token-response regression coverage, run full QA, publish, and retest Store Mirror connection.
+- [x] Audit whether valid Messenger-generated Page tokens are incorrectly rejected by the current token scope validation.
+- [x] Correct any over-strict Page token scope classification while retaining Page identity, tenant, and webhook checks.
+- [x] Add realistic Messenger token-response regression coverage, run full QA, publish, and retest Store Mirror connection.
 
-- [ ] Confirm the new NexaReply Meta App as the intended token issuer and stop using Automated Messenger credentials for Store Mirror.
-- [ ] Update META_APP_ID and META_APP_SECRET only with the new NexaReply App credentials through managed secrets, then validate the mapping safely.
-- [ ] Generate a Store Mirror token from the same new NexaReply App and verify manual connection, webhook subscription, and migration regressions.
+- [x] Confirm the new NexaReply Meta App as the intended token issuer and stop using Automated Messenger credentials for Store Mirror.
+- [x] Update META_APP_ID and META_APP_SECRET only with the new NexaReply App credentials through managed secrets, then validate the mapping safely.
+- [x] Generate a Store Mirror token from the same new NexaReply App and verify manual connection, webhook subscription, and migration regressions.
 
 - [ ] Add pages_read_engagement to the new NexaReply Meta App for role-user testing and obtain the required testing grant.
 - [ ] Generate a fresh Store Mirror Page Access Token with pages_show_list, pages_read_engagement, pages_manage_metadata, and pages_messaging.
-- [ ] Verify Store Mirror manual connection/webhook subscription and record the remaining public App Review requirement.
+- [x] Verify Store Mirror manual connection/webhook subscription and record the remaining public App Review requirement.
 
 - [x] Distinguish missing pages_read_engagement metadata access from missing pages_messaging in manual Meta connection diagnostics.
 - [x] Update Georgian recovery guidance and regression tests without exposing raw provider errors or tokens.
-- [ ] Run full QA, publish the diagnostic update, and retest Store Mirror with the complete grant set.
+- [x] Run full QA, publish the diagnostic update, and retest Store Mirror with the complete grant set.
 - [x] Confirm the current Meta testing-grant flow for pages_read_engagement and guide the owner through the minimum required dashboard action for Store Mirror.
 - [ ] Rotate the exposed App Verify Token after the Store Mirror connection is verified, then update the Meta webhook configuration without revealing the replacement value.
 - [x] Replace manual Page identity validation that unnecessarily needs pages_read_engagement with Page-token self-identity validation and strict submitted-Page-ID matching.
 - [x] Add regression coverage for Page-token self-identity validation, mismatched Page IDs, App Secret Proof, token redaction, and webhook subscription behavior.
+- [ ] Send a real inbound Messenger message to the newly connected Store Mirror Page and confirm it appears in the tenant-scoped NexaReply Inbox.
