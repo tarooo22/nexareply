@@ -143,12 +143,13 @@ function signedRequestConfirmationCode(userId: string, issuedAt: number | undefi
   return crypto.createHash("sha256").update(`${userId}:${issuedAt ?? ""}:${appSecret}`).digest("hex").slice(0, 20);
 }
 
-type ManualMetaFailureReason = "page_not_found" | "invalid_token" | "missing_permissions" | "webhook_subscription" | "unknown";
+type ManualMetaFailureReason = "page_not_found" | "invalid_token" | "missing_page_metadata_permission" | "missing_permissions" | "webhook_subscription" | "unknown";
 
 function classifyManualMetaFailure(error: unknown, stage: "page" | "webhook"): ManualMetaFailureReason {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
   if (stage === "webhook" || message.includes("subscrib")) return "webhook_subscription";
   if (message.includes("invalid oauth") || message.includes("access token") || message.includes("session has expired") || message.includes("oauth")) return "invalid_token";
+  if (message.includes("pages_read_engagement") || message.includes("page public content access") || message.includes("page public metadata access")) return "missing_page_metadata_permission";
   if (message.includes("permission") || message.includes("not authorized") || message.includes("requires") || message.includes("(#10)")) return "missing_permissions";
   if (message.includes("does not exist") || message.includes("unsupported get request") || message.includes("invalid id") || message.includes("object with id")) return "page_not_found";
   return "unknown";

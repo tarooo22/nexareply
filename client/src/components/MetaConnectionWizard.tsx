@@ -28,6 +28,7 @@ function StageProgress({ stage }: { stage: Stage }) {
 function manualConnectionErrorMessage(reason?: string) {
   if (reason === "page_not_found") return "ეს Page ID Meta-ში ვერ მოიძებნა. გადაამოწმე, რომ Page ID სწორია და token სწორედ იმავე Page-იდან არის აღებული.";
   if (reason === "invalid_token") return "ეს Access Token ვადაგასულია, გაუქმებულია ან User Token-ია. შექმენი ახალი Page Access Token Graph API Explorer-იდან.";
+  if (reason === "missing_page_metadata_permission") return "ამ Meta App-ს აკლია pages_read_engagement Page metadata წვდომა. Meta Dashboard-ში დაამატე ეს permission, დაელოდე Ready for testing სტატუსს და შემდეგ შექმენი ახალი Page Access Token.";
   if (reason === "missing_permissions") return "Token-ს აკლია Messenger უფლებები. შექმენი ახალი token pages_show_list, pages_manage_metadata და pages_messaging უფლებების დადასტურების შემდეგ.";
   if (reason === "webhook_subscription") return "Page დადასტურდა, მაგრამ webhook subscription ვერ ჩაირთო. გადაამოწმე pages_manage_metadata/pages_messaging და Page-ზე Full control.";
   return "Page ID ან Access Token ვერ დადასტურდა. გამოიყენე ერთი და იმავე Page-ის id და access_token /me/accounts პასუხიდან.";

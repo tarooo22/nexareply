@@ -113,6 +113,14 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(JSON.stringify(response)).not.toContain("secret-details-must-not-leak");
   });
 
+  it("classifies missing page metadata access without returning provider-sensitive text", async () => {
+    process.env.ENABLE_META_MANUAL_SETUP = "true";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: { message: "(#100) This endpoint requires the pages_read_engagement permission: internal-details-must-not-leak" } }) }));
+    const response = await metaMessengerService.connectManualPage(scope, { pageId: "123456789", pageAccessToken: "token-used-only-inside-server-request" });
+    expect(response).toEqual({ configured: true, status: "verification_failed", reason: "missing_page_metadata_permission" });
+    expect(JSON.stringify(response)).not.toContain("internal-details-must-not-leak");
+  });
+
   it("returns the managed Verify Token only through the explicit owner setup getter", () => {
     process.env.META_VERIFY_TOKEN = "owner-visible-verify-token";
     expect(metaMessengerService.getWebhookVerifyToken()).toEqual({ enabled: true, verifyToken: "owner-visible-verify-token" });
