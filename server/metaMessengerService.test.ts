@@ -74,7 +74,7 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(JSON.stringify(response)).not.toMatch(/app-secret|verify-token|page-access-token|accessToken|encrypted/i);
   });
 
-  it("verifies a manually supplied Page credential and persists only tenant-scoped ciphertext", async () => {
+  it("verifies a manually supplied Page credential through its own Page identity and persists only tenant-scoped ciphertext", async () => {
     process.env.ENABLE_META_MANUAL_SETUP = "true";
     const vault = vi.spyOn(nexareplyRepository, "upsertMetaTokenVault").mockResolvedValue(undefined);
     const connection = vi.spyOn(nexareplyRepository, "upsertMetaConnection").mockResolvedValue(undefined);
@@ -99,10 +99,28 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     for (const [requestUrl] of graph.mock.calls) {
       expect(new URL(String(requestUrl)).searchParams.get("appsecret_proof")).toBe(expectedProof);
     }
+    const selfIdentityUrl = new URL(String(graph.mock.calls[0]?.[0]));
+    expect(selfIdentityUrl.pathname).toMatch(/\/v24\.0\/me$/);
+    expect(selfIdentityUrl.searchParams.get("fields")).toBe("id,name");
     const [, subscriptionRequest] = graph.mock.calls[1];
     expect(subscriptionRequest).toEqual(expect.objectContaining({ headers: { "Content-Type": "application/x-www-form-urlencoded" } }));
     expect(subscriptionRequest?.body).toBeInstanceOf(URLSearchParams);
     expect((subscriptionRequest?.body as URLSearchParams).get("subscribed_fields")).toBe("messages,message_deliveries,message_echoes,messaging_postbacks");
+  });
+
+  it("rejects a manual token whose own Page identity does not match the submitted Page ID without exposing token or provider details", async () => {
+    process.env.ENABLE_META_MANUAL_SETUP = "true";
+    const graph = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "different-page", name: "Different Page" }) });
+    vi.stubGlobal("fetch", graph);
+
+    const response = await metaMessengerService.connectManualPage(scope, {
+      pageId: "123456789",
+      pageAccessToken: "manual-token-for-another-page-must-not-leak",
+    });
+
+    expect(response).toEqual({ configured: true, status: "verification_failed", reason: "page_not_found" });
+    expect(graph).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(response)).not.toContain("manual-token-for-another-page-must-not-leak");
   });
 
   it("classifies a provider token failure without returning provider-sensitive text", async () => {

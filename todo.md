@@ -295,3 +295,7 @@
 - [x] Distinguish missing pages_read_engagement metadata access from missing pages_messaging in manual Meta connection diagnostics.
 - [x] Update Georgian recovery guidance and regression tests without exposing raw provider errors or tokens.
 - [ ] Run full QA, publish the diagnostic update, and retest Store Mirror with the complete grant set.
+- [x] Confirm the current Meta testing-grant flow for pages_read_engagement and guide the owner through the minimum required dashboard action for Store Mirror.
+- [ ] Rotate the exposed App Verify Token after the Store Mirror connection is verified, then update the Meta webhook configuration without revealing the replacement value.
+- [x] Replace manual Page identity validation that unnecessarily needs pages_read_engagement with Page-token self-identity validation and strict submitted-Page-ID matching.
+- [x] Add regression coverage for Page-token self-identity validation, mismatched Page IDs, App Secret Proof, token redaction, and webhook subscription behavior.

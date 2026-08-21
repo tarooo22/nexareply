@@ -149,6 +149,7 @@ function classifyManualMetaFailure(error: unknown, stage: "page" | "webhook"): M
   const message = error instanceof Error ? error.message.toLowerCase() : "";
   if (stage === "webhook" || message.includes("subscrib")) return "webhook_subscription";
   if (message.includes("invalid oauth") || message.includes("access token") || message.includes("session has expired") || message.includes("oauth")) return "invalid_token";
+  if (message.includes("page identity could not be verified")) return "page_not_found";
   if (message.includes("pages_read_engagement") || message.includes("page public content access") || message.includes("page public metadata access")) return "missing_page_metadata_permission";
   if (message.includes("permission") || message.includes("not authorized") || message.includes("requires") || message.includes("(#10)")) return "missing_permissions";
   if (message.includes("does not exist") || message.includes("unsupported get request") || message.includes("invalid id") || message.includes("object with id")) return "page_not_found";
@@ -425,10 +426,13 @@ export const metaMessengerService = {
     const pageAppSecretProof = appSecretProof(pageAccessToken, config.appSecret);
     let validationStage: "page" | "webhook" = "page";
     try {
-      // Meta validates both Page ownership and the token's scopes here. The plaintext
-      // credential exists only in this server request and is never included in an audit
-      // record, tRPC response, browser state, or provider error shown to the user.
-      const page = await graphRequest<{ id?: string; name?: string }>(`${encodeURIComponent(pageId)}?fields=id,name`, {
+      // A Page access token resolves its own Page at /me. This proves that the supplied
+      // token belongs to the submitted Page without fetching Page metadata through
+      // /{page-id}, which can require pages_read_engagement even though Messenger
+      // connection itself only needs the Page credential plus subscription rights.
+      // The plaintext credential exists only in these server requests and is never
+      // included in an audit record, tRPC response, browser state, or provider error.
+      const page = await graphRequest<{ id?: string; name?: string }>("me?fields=id,name", {
         accessToken: pageAccessToken,
         appSecretProof: pageAppSecretProof,
       });
