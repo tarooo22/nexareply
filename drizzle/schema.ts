@@ -58,7 +58,7 @@ export const organizations = mysqlTable("organizations", {
   mode: mysqlEnum("mode", ["demo", "live"]).notNull().default("live"),
   planId: int("planId"),
   aiTone: varchar("aiTone", { length: 100 }).notNull().default("თბილი და კონკრეტული"),
-  aiPersona: varchar("aiPersona", { length: 180 }).notNull().default("Amadeo-ის სუნამოების კონსულტანტი"),
+  aiPersona: varchar("aiPersona", { length: 180 }).notNull().default("Messenger გაყიდვების კონსულტანტი"),
   replyLength: mysqlEnum("replyLength", ["short", "normal", "detailed"]).notNull().default("normal"),
   fallbackMessage: text("fallbackMessage"),
   debounceSeconds: int("debounceSeconds").notNull().default(10),

@@ -1,0 +1,1 @@
+ALTER TABLE `organizations` MODIFY COLUMN `aiPersona` varchar(180) NOT NULL DEFAULT 'Messenger გაყიდვების კონსულტანტი';

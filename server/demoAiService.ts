@@ -1,7 +1,7 @@
 import { nexareplyRepository, type WorkspaceScope } from "./nexareplyRepository";
 import { dispatchDurableQueueWakeup } from "./durableQueueDispatcher";
 
-const DEFAULT_HOLDING_REPLY = "ზუსტ დეტალს Amadeo-ის გუნდთან გადავამოწმებ და მალე დაგიბრუნდებით.";
+const DEFAULT_HOLDING_REPLY = "ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით.";
 
 export type DemoAiOutcome =
   | { decision: "draft"; text: string; source: "catalog" | "knowledge" }
@@ -62,7 +62,7 @@ export async function createDatabaseBackedDemoDraft(scope: WorkspaceScope, conve
   await nexareplyRepository.createNotificationOnce(scope, {
     type: "needs_human",
     title: "ოპერატორის ჩართვა საჭიროა",
-    body: `${conversation.customerName}-ის კითხვას Amadeo-ის კატალოგსა და ცოდნის ბაზაში უსაფრთხო პასუხი არ მოეძებნა.`,
+    body: `${conversation.customerName}-ის კითხვას მიმდინარე catalog-სა და ცოდნის ბაზაში უსაფრთხო პასუხი არ მოეძებნა.`,
     relatedConversationId: conversationId,
     dedupeKey: `needs_human:${conversationId}`,
   });

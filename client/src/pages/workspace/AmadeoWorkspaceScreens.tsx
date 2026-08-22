@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
+import { inboxDeliveryLabel, inboxMessageAuthorLabel } from "@/lib/inboxPresentation";
 
 type WorkspaceProps = { organizationId: number; role: "owner" | "operator" };
 type OverviewProps = WorkspaceProps & { onNavigate: (section: string) => void };
@@ -2481,7 +2482,7 @@ export function WorkspaceAlertsScreen({ organizationId }: WorkspaceProps) {
   );
 }
 
-export function WorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
+export function WorkspaceInboxScreen({ organizationId, role }: WorkspaceProps) {
   const [rawQuery, setRawQuery] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | "open" | "pending" | "closed">(
@@ -2504,6 +2505,10 @@ export function WorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
   const context = trpc.nexareply.workspace.conversations.context.useQuery(
     { organizationId, conversationId: selectedId ?? 0 },
     { enabled: Boolean(selectedId) }
+  );
+  const pageStatus = trpc.nexareply.workspace.owner.meta.status.useQuery(
+    { organizationId },
+    { enabled: role === "owner" }
   );
   const draft =
     trpc.nexareply.workspace.conversations.createDraft.useMutation();
@@ -2543,13 +2548,6 @@ export function WorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
     setHandoffReason("");
   }, [selectedId]);
 
-  const deliveryLabel: Record<string, string> = {
-    received: "მიღებულია",
-    draft: "draft",
-    queued: "რიგშია",
-    sent: "გაგზავნილია",
-    failed: "ვერ გაიგზავნა",
-  };
   const deliveryTone: Record<string, string> = {
     received: "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300",
     draft: "border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300",
@@ -2728,6 +2726,11 @@ export function WorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
             ავტომატური დამუშავების 10-წამიანი გარანტია ჯერ durable worker
             hosting-ზეა დამოკიდებული.
           </p>
+          {role === "owner" && pageStatus.data?.status === "connected" && pageStatus.data.page ? (
+            <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              აქტიური Facebook გვერდი: {pageStatus.data.page.name}. გაგზავნილი ოპერატორის პასუხი ამ გვერდიდან მიდის.
+            </p>
+          ) : null}
         </div>
         <button
           onClick={refresh}
@@ -2858,6 +2861,11 @@ export function WorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
                       <span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${isPaused ? "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"}`}>
                         {isPaused ? "ადამიანის კონტროლი" : "AI აქტიურია"}
                       </span>
+                      {role === "owner" && pageStatus.data?.status === "connected" && pageStatus.data.page ? (
+                        <span className="max-w-[190px] truncate rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-1 text-[10px] font-bold text-sky-700 dark:text-sky-300" title={pageStatus.data.page.name}>
+                          გვერდი: {pageStatus.data.page.name}
+                        </span>
+                      ) : null}
                       {selected.priority === "high" ? (
                         <span className="rounded-full border border-rose-500/25 bg-rose-500/10 px-2 py-1 text-[10px] font-bold text-rose-700 dark:text-rose-300">მაღალი პრიორიტეტი</span>
                       ) : null}
@@ -2930,18 +2938,10 @@ export function WorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
                         </div>
                       ) : null}
                       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] opacity-80">
-                        <span>
-                          {message.sender === "ai"
-                            ? "AI draft"
-                            : message.sender === "operator"
-                              ? "ოპერატორი"
-                              : message.sender === "customer"
-                                ? "კლიენტი"
-                                : "სისტემა"}
-                        </span>
+                        <span>{inboxMessageAuthorLabel(message.sender, message.isDraft)}</span>
                         <span aria-hidden="true">·</span>
                         <span className={`rounded-full border px-1.5 py-0.5 font-bold opacity-100 ${deliveryTone[message.deliveryStatus] ?? "border-border bg-background text-muted-foreground"}`}>
-                          {deliveryLabel[message.deliveryStatus] ?? "შენახულია"}
+                          {inboxDeliveryLabel(message.deliveryStatus)}
                         </span>
                         <span aria-hidden="true">·</span>
                         <span>{dateTime(message.createdAt)}</span>
