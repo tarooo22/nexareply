@@ -308,7 +308,7 @@
 
 - [x] Inventory every button and interactive control across public, demo, authenticated workspace, Meta setup, Inbox, Products, Knowledge, AI assistant, Tickets, Analytics, Alerts, Settings, Members, and auth screens.
 - [x] Trace controls to navigation, mutation, form submission, modal, copy, refresh, or feedback behavior; identify broken or silent no-op actions.
-- [ ] Repair broken actions with loading, success, error, disabled, keyboard, accessible-label, and responsive feedback.
+- [x] Repair broken actions with loading, success, error, disabled, keyboard, accessible-label, and responsive feedback.
 - [x] Add regression tests for repaired interactions and intentional external or owner-dependent actions.
-- [ ] Run TypeScript, full Vitest, production build, and responsive smoke QA.
+- [x] Run TypeScript, full Vitest, production build, and responsive smoke QA.
 - [ ] Save a verified checkpoint and report remaining owner-dependent or external actions.

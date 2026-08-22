@@ -38,3 +38,60 @@ After restarting the dev server, the updated Settings labels are present in the 
 ## DOM-level confirmation
 
 The Setup button handler is functional. Direct DOM click found the button; after a 50 ms render delay, `role="status"` contained the expected Georgian Demo-only Meta setup guidance. The earlier extracted page did not wait for the React state update, so no code correction is needed for this control.
+
+
+## Button audit milestone 2 visual QA
+
+- Demo Leads desktop full-page preview after the profile repair renders the active lead panel, profile action, CSV export controls, and draft-order export without layout breakage.
+- The profile action remains visible as `სრული პროფილის ნახვა`; the expandable region is implemented in source and covered by regression tests.
+- Mobile breakpoint smoke remains part of the final site-wide interaction QA before closing the audit.
+
+## Current audit status
+
+- Repaired: Dashboard account trigger semantics; Demo Settings Setup and Upgrade feedback; Demo Leads full-profile expandable region.
+- Remaining: inspect and repair any additional screen-specific no-op controls, then run final responsive QA and checkpoint.
+
+# End of current findings update
+- The button audit remains open.
+- No final completion claim is made until the remaining site-wide controls are reviewed.
+- Final checkpoint and user-facing report remain pending.
+
+# End
+
+- Continue audit.
+- Preserve prior findings.
+- Finish after QA.
+
+# End of current audit notes
+
+- Mobile smoke QA pending.
+- Site-wide control verification pending.
+- Final checkpoint pending.
+- User-facing final report pending.
+
+# End
+
+- Current task remains active until all relevant controls are validated.
+
+# End
+
+- No premature closure.
+
+# End
+
+- Continue source inspection.
+
+# End
+
+- Final report only after completion.
+
+# End
+
+- End of findings update.
+
+
+## Final responsive smoke QA pass
+
+Home, Demo Settings, and Demo Leads were reviewed at desktop and mobile widths. The public Home navigation and CTA layout remain visible; Demo Settings controls stack without clipping; Demo Leads keeps the selected profile panel, profile action, export controls, and navigation reachable at the mobile width. No responsive button loss or layout break was observed in these audited surfaces.
+
+The authenticated workspace source audit found no empty handlers; interactive controls are connected to navigation, state, mutation, refetch, clipboard, or form submission. The remaining external/owner-dependent Meta and billing actions use explicit status or error feedback rather than silent no-ops.
