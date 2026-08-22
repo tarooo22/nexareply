@@ -299,6 +299,7 @@
 - [ ] Rotate the exposed App Verify Token after the Store Mirror connection is verified, then update the Meta webhook configuration without revealing the replacement value.
 - [x] Replace manual Page identity validation that unnecessarily needs pages_read_engagement with Page-token self-identity validation and strict submitted-Page-ID matching.
 - [x] Add regression coverage for Page-token self-identity validation, mismatched Page IDs, App Secret Proof, token redaction, and webhook subscription behavior.
-- [ ] Send a real inbound Messenger message to the newly connected Store Mirror Page and confirm it appears in the tenant-scoped NexaReply Inbox.
+- [x] Store Mirror inbound verification was intentionally cancelled because the owner disconnected that Page before the test.
+- [x] Record the verified live inbound Messenger event for the currently connected Khavsi Page in its tenant-scoped NexaReply Inbox.
 - [x] Replace stale Amadeo-specific Inbox guidance with the organization’s currently connected Page context, including Store Mirror after a successful connection.
 - [x] Show a clear author label for every outgoing Inbox response, distinguishing AI draft, operator response, and Page delivery status.
