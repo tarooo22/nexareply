@@ -311,4 +311,12 @@
 - [x] Repair broken actions with loading, success, error, disabled, keyboard, accessible-label, and responsive feedback.
 - [x] Add regression tests for repaired interactions and intentional external or owner-dependent actions.
 - [x] Run TypeScript, full Vitest, production build, and responsive smoke QA.
-- [ ] Save a verified checkpoint and report remaining owner-dependent or external actions.
+- [x] Save a verified checkpoint and report remaining owner-dependent or external actions.
+
+
+## Meta rollout continuation — owner-controlled prerequisites
+
+- [x] Audit current Business Verification, App Review/Live-mode, external-account OAuth, and Verify Token rotation status without changing the active Khavsi connection.
+- [x] Prepare safe Georgian owner-side instructions for the remaining Meta Dashboard actions and distinguish code-ready versus owner-dependent items.
+- [x] Validate non-destructive project readiness for the external-account OAuth retest and confirm no secret or active connection changes were made.
+- [x] Report the exact remaining blockers and next safe action.
