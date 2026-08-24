@@ -370,3 +370,11 @@
 - [x] Add or extend ticket, notification, handoff dedupe, authorization and tenant-isolation regression coverage for confirmed Phase 6 changes.
 - [x] Run TypeScript, full Vitest, production build, and desktop/mobile Tickets/Alerts smoke QA without changing Meta connections or managed secrets.
 - [x] Save a Phase 6 checkpoint and report analytics/billing follow-up scope.
+
+## Master Plan — Phase 7: truthful analytics, entitlements, and billing readiness
+
+- [x] Audit analytics aggregation, plan/usage presentation, entitlement enforcement, billing placeholders and owner-facing upgrade states for confirmed truthfulness or authorization gaps.
+- [x] Repair only confirmed analytics/usage visibility and billing-readiness UX gaps; do not fabricate payment, subscription or usage records and do not activate a provider without owner confirmation.
+- [x] Add or extend analytics, entitlement, tenant-isolation and billing-placeholder regression coverage for confirmed Phase 7 changes.
+- [x] Run TypeScript, full Vitest, production build, and desktop/mobile Analytics/Settings smoke QA without changing Meta connections or managed secrets.
+- [x] Save a Phase 7 checkpoint and report the exact external billing/Meta rollout requirements.
