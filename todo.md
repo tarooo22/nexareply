@@ -396,3 +396,11 @@
 - [x] Add or extend route/component-loading, navigation and auth-boundary regression coverage for the workspace split.
 - [x] Run TypeScript, full Vitest, production build, bundle-size comparison and desktop/mobile route smoke QA without changing Meta connections, secrets or external integrations.
 - [x] Save a checkpoint and report remaining owner-controlled Meta/billing dependencies.
+
+## Independent optimization: shared vendor chunking
+
+- [x] Audit Vite build configuration and production chunk composition for a safe shared-vendor split that does not alter runtime behavior.
+- [x] Apply only confirmed manual chunk boundaries for stable shared libraries and verify dynamic routes continue to resolve correctly.
+- [x] Add or extend build/config regression coverage for the shared-vendor chunk contract.
+- [x] Run TypeScript, full Vitest, production build, bundle-size comparison and public/protected route smoke QA without changing integrations or secrets.
+- [x] Save a checkpoint and report remaining owner-controlled Meta/billing dependencies.
