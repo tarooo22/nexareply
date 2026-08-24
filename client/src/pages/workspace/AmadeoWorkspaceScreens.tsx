@@ -2230,6 +2230,7 @@ export function WorkspaceTicketsScreen({ organizationId }: WorkspaceProps) {
     status: "open",
   });
   const resolve = trpc.nexareply.workspace.tickets.resolve.useMutation();
+  const [ticketFeedback, setTicketFeedback] = useState<string | null>(null);
   if (tickets.isLoading)
     return (
       <div className="mt-5">
@@ -2240,6 +2241,8 @@ export function WorkspaceTicketsScreen({ organizationId }: WorkspaceProps) {
         />
       </div>
     );
+  if (tickets.isError)
+    return <div className="mt-5"><StatePanel kind="error" title="Tickets ვერ ჩაიტვირთა" description="მონაცემები არ შეცვლილა. სცადეთ ხელახლა." action={<button type="button" onClick={() => void tickets.refetch()} className="min-h-10 rounded-xl border border-border px-4 text-sm font-bold">განახლება</button>} /></div>;
   return (
     <div className="mt-5 rounded-3xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -2280,14 +2283,14 @@ export function WorkspaceTicketsScreen({ organizationId }: WorkspaceProps) {
               onClick={() =>
                 resolve.mutate(
                   { organizationId, ticketId: ticket.id },
-                  { onSuccess: () => void tickets.refetch() }
+                  { onSuccess: () => { setTicketFeedback("Ticket დასრულდა."); void tickets.refetch(); }, onError: () => setTicketFeedback("Ticket ვერ დასრულდა. სცადეთ ხელახლა.") }
                 )
               }
               disabled={resolve.isPending}
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-bold transition-colors hover:border-primary/40 hover:bg-primary/5"
             >
               <CheckCircle2 className="size-4 text-emerald-500" />
-              დასრულება
+              {resolve.isPending ? "სრულდება…" : "დასრულება"}
             </button>
           </article>
         ))}
@@ -2298,6 +2301,7 @@ export function WorkspaceTicketsScreen({ organizationId }: WorkspaceProps) {
             description="უცნობი კითხვა, AI safety handoff ან ადამიანის ჩართვა აქ გამოჩნდება persistent queue-ად."
           />
         ) : null}
+        {ticketFeedback ? <p role="status" className={`text-sm ${resolve.isError ? "text-destructive" : "text-emerald-700 dark:text-emerald-300"}`}>{ticketFeedback}</p> : null}
       </div>
     </div>
   );
@@ -2430,6 +2434,7 @@ export function WorkspaceAlertsScreen({ organizationId }: WorkspaceProps) {
   });
   const markRead =
     trpc.nexareply.workspace.notifications.markRead.useMutation();
+  const [alertFeedback, setAlertFeedback] = useState<string | null>(null);
   if (alerts.isLoading)
     return (
       <div className="mt-5">
@@ -2440,6 +2445,8 @@ export function WorkspaceAlertsScreen({ organizationId }: WorkspaceProps) {
         />
       </div>
     );
+  if (alerts.isError)
+    return <div className="mt-5"><StatePanel kind="error" title="შეტყობინებები ვერ ჩაიტვირთა" description="მონაცემები არ შეცვლილა. სცადეთ ხელახლა." action={<button type="button" onClick={() => void alerts.refetch()} className="min-h-10 rounded-xl border border-border px-4 text-sm font-bold">განახლება</button>} /></div>;
   return (
     <div className="mt-5 rounded-3xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -2455,7 +2462,7 @@ export function WorkspaceAlertsScreen({ organizationId }: WorkspaceProps) {
           onClick={() =>
             markRead.mutate(
               { organizationId },
-              { onSuccess: () => void alerts.refetch() }
+              { onSuccess: () => { setAlertFeedback("შეტყობინებები წაკითხულად მოინიშნა."); void alerts.refetch(); }, onError: () => setAlertFeedback("შეტყობინებების მონიშვნა ვერ მოხერხდა.") }
             )
           }
           disabled={
@@ -2487,7 +2494,7 @@ export function WorkspaceAlertsScreen({ organizationId }: WorkspaceProps) {
                   onClick={() =>
                     markRead.mutate(
                       { organizationId, ids: [alert.id] },
-                      { onSuccess: () => void alerts.refetch() }
+                      { onSuccess: () => { setAlertFeedback("შეტყობინება წაკითხულად მოინიშნა."); void alerts.refetch(); }, onError: () => setAlertFeedback("შეტყობინების მონიშვნა ვერ მოხერხდა.") }
                     )
                   }
                   className="rounded-lg border border-border px-3 py-2 text-xs font-bold"
@@ -2505,6 +2512,7 @@ export function WorkspaceAlertsScreen({ organizationId }: WorkspaceProps) {
             description="უცნობი კითხვა, handoff, high-priority lead და AI pause აქ ავტომატურად გამოჩნდება."
           />
         ) : null}
+        {alertFeedback ? <p role="status" className={`text-sm ${markRead.isError ? "text-destructive" : "text-emerald-700 dark:text-emerald-300"}`}>{alertFeedback}</p> : null}
       </div>
     </div>
   );

@@ -362,3 +362,11 @@
 - [x] Add or extend repeated-event, job-idempotency, lease/retry/DLQ, tenant-isolation, recovery-control and secret-boundary regression coverage for confirmed Phase 5 changes.
 - [x] Run TypeScript, full Vitest, production build, and desktop/mobile Inbox/operations smoke QA without changing Meta connections or managed secrets.
 - [x] Save a Phase 5 checkpoint and report ticket/notification and analytics follow-up scope.
+
+## Master Plan — Phase 6: tickets, handoff, and owner/operator notifications
+
+- [x] Audit ticket state, handoff dedupe, notification lifecycle, assignment/resolution UX, authorization, and alert visibility for confirmed gaps.
+- [x] Repair only confirmed ticket/notification lifecycle and recovery UX gaps while retaining tenant isolation, idempotent handoff and secret-safe notifications.
+- [x] Add or extend ticket, notification, handoff dedupe, authorization and tenant-isolation regression coverage for confirmed Phase 6 changes.
+- [x] Run TypeScript, full Vitest, production build, and desktop/mobile Tickets/Alerts smoke QA without changing Meta connections or managed secrets.
+- [x] Save a Phase 6 checkpoint and report analytics/billing follow-up scope.
