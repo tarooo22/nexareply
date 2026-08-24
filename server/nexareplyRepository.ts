@@ -466,6 +466,16 @@ export const nexareplyRepository = {
     return record.id;
   },
 
+  async getProductImport(scope: WorkspaceScope, importId: number) {
+    const db = await requireDb();
+    return (await db.select().from(productImports).where(and(eq(productImports.id, importId), eq(productImports.organizationId, scope.organizationId))).limit(1))[0];
+  },
+
+  async getProductBySku(scope: WorkspaceScope, sku: string) {
+    const db = await requireDb();
+    return (await db.select().from(products).where(and(eq(products.organizationId, scope.organizationId), eq(products.sku, sku))).limit(1))[0];
+  },
+
   async finishProductImport(scope: WorkspaceScope, importId: number, validRows: number, errors: unknown) {
     const db = await requireDb();
     const errorRows = Array.isArray(errors) ? errors.length : 0;

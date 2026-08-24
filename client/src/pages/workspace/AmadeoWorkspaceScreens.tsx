@@ -1342,7 +1342,7 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
               onClick={() =>
                 filePayload &&
                 commit.mutate(
-                  { organizationId, ...filePayload },
+                  { organizationId, ...filePayload, importId: preview.data.importId },
                   {
                     onSuccess: () => {
                       setFilePayload(null);

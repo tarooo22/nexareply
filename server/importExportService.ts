@@ -67,17 +67,34 @@ export async function previewCatalogImport(scope: WorkspaceScope, input: { base6
   return { importId, totalRows: parsed.totalRows, validRows: parsed.validRows, errors: parsed.errors };
 }
 
-export async function commitCatalogImport(scope: WorkspaceScope, input: { base64: string; fileName: string; mapping?: CatalogMapping }) {
+export async function commitCatalogImport(scope: WorkspaceScope, input: { base64: string; fileName: string; mapping?: CatalogMapping; importId?: number }) {
   const parsed = parseCatalogFile(input.base64, input.fileName, input.mapping);
-  const importId = await nexareplyRepository.createProductImport(scope, { fileName: parsed.fileName, format: parsed.format, status: "preview", validRows: parsed.validRows.length, invalidRows: parsed.errors.length, errors: parsed.errors });
-  let imported = 0;
+  const existingImport = input.importId ? await nexareplyRepository.getProductImport(scope, input.importId) : undefined;
+  if (input.importId && !existingImport) throw new Error("Import preview ვერ მოიძებნა.");
+  if (existingImport && existingImport.fileName !== parsed.fileName) throw new Error("არჩეული ფაილი preview-ს არ ემთხვევა.");
+  if (existingImport?.status === "completed") {
+    const errors = Array.isArray(existingImport.errors) ? existingImport.errors as Array<{ row: number; message: string }> : [];
+    return { importId: existingImport.id, created: 0, updated: 0, imported: existingImport.validRows, invalidRows: existingImport.invalidRows, errors, alreadyCommitted: true as const };
+  }
+  const importId = existingImport?.id ?? await nexareplyRepository.createProductImport(scope, { fileName: parsed.fileName, format: parsed.format, status: "preview", validRows: parsed.validRows.length, invalidRows: parsed.errors.length, errors: parsed.errors });
+  let created = 0;
+  let updated = 0;
   const commitErrors = [...parsed.errors];
   for (const row of parsed.validRows) {
-    try { await nexareplyRepository.createProduct(scope, row); imported += 1; }
-    catch (error) { commitErrors.push({ row: imported + commitErrors.length + 2, message: error instanceof Error ? error.message : "მონაცემის შენახვა ვერ მოხერხდა" }); }
+    try {
+      const existing = await nexareplyRepository.getProductBySku(scope, row.sku);
+      if (existing) {
+        await nexareplyRepository.updateProduct(scope, existing.id, row);
+        updated += 1;
+      } else {
+        await nexareplyRepository.createProduct(scope, row);
+        created += 1;
+      }
+    } catch (error) { commitErrors.push({ row: created + updated + commitErrors.length + 2, message: error instanceof Error ? error.message : "მონაცემის შენახვა ვერ მოხერხდა" }); }
   }
+  const imported = created + updated;
   await nexareplyRepository.finishProductImport(scope, importId, imported, commitErrors);
-  return { importId, imported, invalidRows: commitErrors.length, errors: commitErrors };
+  return { importId, created, updated, imported, invalidRows: commitErrors.length, errors: commitErrors, alreadyCommitted: false as const };
 }
 
 function csvCell(value: unknown) {

@@ -38,7 +38,7 @@ const mappingInput = z.object({
   brand: z.string(), fragranceName: z.string().optional(), model: z.string().optional(), sku: z.string(), priceGel: z.string(), stock: z.string(),
   availability: z.string().optional(), color: z.string().optional(), volume: z.string().optional(), storage: z.string().optional(), description: z.string().optional(), installment: z.string().optional(), warranty: z.string().optional(),
 }).refine((mapping) => Boolean(mapping.fragranceName || mapping.model), { message: "სურნელის სვეტი სავალდებულოა." });
-const uploadInput = z.object({ base64: z.string().min(1).max(10_000_000), fileName: z.string().min(5).max(255), mapping: mappingInput.optional() });
+const uploadInput = z.object({ base64: z.string().min(1).max(10_000_000), fileName: z.string().min(5).max(255), mapping: mappingInput.optional(), importId: z.number().int().positive().optional() });
 const productAssetUploadInput = z.object({
   productId: z.number().int().positive(),
   base64: z.string().min(4).max(7_000_000),
