@@ -346,3 +346,11 @@
 - [x] Add or extend catalog, image-validation, import idempotency, export, archive, pagination and tenant-isolation regression coverage for confirmed Phase 3 changes.
 - [x] Run TypeScript, full Vitest, production build, and desktop/mobile catalog smoke QA without changing any Meta connection or managed secret.
 - [x] Save a Phase 3 checkpoint and report the next AI/knowledge vertical slice.
+
+## Master Plan — Phase 4: approval-first Knowledge Base and grounded AI Assistant
+
+- [x] Audit knowledge sources/drafts/facts, assistant settings, AI reply adapter, handoff/ticket behavior, quota gates, and UI states against the approved grounded-answer algorithm.
+- [x] Repair only confirmed approval, evidence, unknown-question, AI pause/takeover, and tenant/secret-boundary gaps using server-only structured LLM contracts.
+- [x] Add or extend knowledge/AI safety, tenant-isolation, handoff idempotency, quota, approval, and browser-secret regression coverage for confirmed Phase 4 changes.
+- [x] Run TypeScript, full Vitest, production build, and desktop/mobile Knowledge/AI UI smoke QA without invoking unapproved production automation or changing Meta connections/secrets.
+- [x] Save a Phase 4 checkpoint and report the durable Inbox automation/worker slice.

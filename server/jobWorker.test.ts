@@ -12,7 +12,7 @@ describe("durable conversation worker lease flow", () => {
 
     await expect(processDueConversationJobs(10)).resolves.toEqual([{ jobId: 501, status: "completed" }]);
 
-    expect(draft).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 41 }), 301);
+    expect(draft).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 41 }), 301, { automated: true });
     expect(complete).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 41 }), 501, expect.any(String), "completed");
     const leaseToken = vi.mocked(nexareplyRepository.claimDueConversationJobs).mock.calls[0]?.[1];
     expect(complete).toHaveBeenCalledWith(expect.anything(), 501, leaseToken, "completed");

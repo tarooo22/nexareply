@@ -1,5 +1,6 @@
 import { nexareplyRepository, type WorkspaceScope } from "./nexareplyRepository";
 import { dispatchDurableQueueWakeup } from "./durableQueueDispatcher";
+import { requireEntitlement } from "./entitlementService";
 
 const DEFAULT_HOLDING_REPLY = "ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით.";
 
@@ -12,7 +13,14 @@ function includesAny(text: string, values: string[]) {
   return values.some((value) => text.includes(value));
 }
 
-export async function createDatabaseBackedDemoDraft(scope: WorkspaceScope, conversationId: number): Promise<DemoAiOutcome> {
+export async function createDatabaseBackedDemoDraft(scope: WorkspaceScope, conversationId: number, options: { automated?: boolean } = {}): Promise<DemoAiOutcome> {
+  if (options.automated && !scope.isDemo) {
+    try {
+      await requireEntitlement(scope, "ai_automation");
+    } catch {
+      return { decision: "blocked", text: "AI ავტომატიზაცია ამ workspace-ის მიმდინარე plan-ზე ხელმისაწვდომი არ არის.", source: "blocked" };
+    }
+  }
   const conversation = await nexareplyRepository.getConversation(scope, conversationId);
   if (!conversation) throw new Error("Conversation not found");
   if (conversation.humanActive || conversation.aiState !== "active") {

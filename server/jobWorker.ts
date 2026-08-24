@@ -14,7 +14,7 @@ export async function processDueConversationJobs(limit = 20) {
     const scope: WorkspaceScope = { organizationId: job.organizationId, role: "owner", isDemo: false };
     try {
       if (!job.conversationId) throw new Error("Conversation job has no conversationId");
-      await createDatabaseBackedDemoDraft(scope, job.conversationId);
+      await createDatabaseBackedDemoDraft(scope, job.conversationId, { automated: true });
       await nexareplyRepository.completeLeasedJob(scope, job.id, leaseToken, "completed");
       results.push({ jobId: job.id, status: "completed" });
     } catch (error) {
