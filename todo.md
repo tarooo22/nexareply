@@ -388,3 +388,11 @@
 - [x] Add or extend route loading, navigation, responsive UI, plan-visibility and no-checkout regression coverage for confirmed changes.
 - [x] Run TypeScript, full Vitest, production build, bundle-size comparison and desktop/mobile smoke QA; preserve Meta connections and managed secrets.
 - [x] Save a checkpoint and report the shipped independent improvements plus owner-controlled dependencies still deferred.
+
+## Independent optimization: authenticated workspace component splitting
+
+- [x] Audit the authenticated workspace import graph and determine which route-level screen groups can be lazy loaded without changing tenant/auth contracts.
+- [x] Implement safe lazy-loading boundaries and loading states for confirmed non-critical authenticated workspace screen groups.
+- [x] Add or extend route/component-loading, navigation and auth-boundary regression coverage for the workspace split.
+- [x] Run TypeScript, full Vitest, production build, bundle-size comparison and desktop/mobile route smoke QA without changing Meta connections, secrets or external integrations.
+- [x] Save a checkpoint and report remaining owner-controlled Meta/billing dependencies.
