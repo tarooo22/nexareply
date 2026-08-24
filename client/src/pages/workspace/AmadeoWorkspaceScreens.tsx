@@ -13,6 +13,7 @@ import {
   ImagePlus,
   Loader2,
   PackagePlus,
+  Pencil,
   RefreshCw,
   Send,
   ShieldCheck,
@@ -769,6 +770,7 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
     organizationId,
   });
   const create = trpc.nexareply.workspace.products.create.useMutation();
+  const update = trpc.nexareply.workspace.products.update.useMutation();
   const archive = trpc.nexareply.workspace.products.archive.useMutation();
   const uploadAsset =
     trpc.nexareply.workspace.products.assets.upload.useMutation();
@@ -801,6 +803,8 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
   );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({ brand: "", fragranceName: "", volume: "", priceGel: "", stock: "0", availability: "", description: "" });
   useEffect(() => {
     if (!selectedProductId && products.data?.[0])
       setSelectedProductId(products.data[0].product.id);
@@ -893,6 +897,7 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
   const selectedProduct = products.data?.find(
     item => item.product.id === selectedProductId
   )?.product;
+  const editingEntry = products.data?.find(item => item.product.id === editingProductId);
   const selectedAssets = (assets.data ?? [])
     .filter(asset => asset.productId === selectedProductId)
     .sort(
@@ -1043,18 +1048,16 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
                       </td>
                       <td className="px-3 py-4">
                         {role === "owner" ? (
-                          <button
-                            onClick={() =>
-                              archive.mutate(
+                          <div className="flex items-center gap-1"><button type="button" onClick={() => { setEditingProductId(product.id); setEditForm({ brand: product.brand, fragranceName: product.model, volume: variant.storage, priceGel: String(variant.priceGel), stock: String(variant.stock), availability: variant.color, description: product.description }); }} className="rounded-lg px-2 py-1.5 text-xs font-bold text-primary hover:bg-primary/10">რედაქტირება</button><button
+                            onClick={() => archive.mutate(
                                 { organizationId, productId: product.id },
                                 { onSuccess: () => void products.refetch() }
-                              )
-                            }
+                              )}
                             className="rounded-lg p-2 text-muted-foreground hover:bg-secondary"
                             aria-label={`${product.model} არქივში`}
                           >
                             <Archive className="size-4" />
-                          </button>
+                          </button></div>
                         ) : null}
                       </td>
                     </tr>
@@ -1161,6 +1164,7 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
           ) : null}
         </aside>
       </section>
+      {editingEntry && role === "owner" ? <section className="rounded-2xl border border-primary/25 bg-card p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-bold text-primary">პროდუქტის რედაქტირება</p><h2 className="mt-1 text-xl font-black">{editingEntry.product.brand} · {editingEntry.product.model}</h2></div><button type="button" onClick={() => setEditingProductId(null)} className="min-h-10 rounded-xl border border-border px-3 text-sm font-bold">დახურვა</button></div><form className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" onSubmit={(event) => { event.preventDefault(); update.mutate({ organizationId, productId: editingEntry.product.id, patch: { ...editForm, stock: Number(editForm.stock) } }, { onSuccess: () => { setEditingProductId(null); void products.refetch(); }, }); }}>{([['brand','ბრენდი'],['fragranceName','პროდუქტის დასახელება'],['volume','მოცულობა'],['priceGel','ფასი GEL'],['stock','მარაგი'],['availability','ხელმისაწვდომობა']] as const).map(([key,label]) => <label key={key} className="grid gap-1 text-xs font-bold text-muted-foreground">{label}<input required value={editForm[key]} onChange={(event) => setEditForm({ ...editForm, [key]: event.target.value })} className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary" /></label>)}<label className="grid gap-1 text-xs font-bold text-muted-foreground sm:col-span-2 lg:col-span-3">აღწერა<textarea required value={editForm.description} onChange={(event) => setEditForm({ ...editForm, description: event.target.value })} className="min-h-20 rounded-xl border border-border bg-background p-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary" /></label><div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3"><button type="submit" disabled={update.isPending} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-50"><Pencil className="size-4" />{update.isPending ? "ინახება…" : "ცვლილებების შენახვა"}</button>{update.error ? <p role="alert" className="text-sm text-destructive">პროდუქტის განახლება ვერ მოხერხდა.</p> : null}</div></form></section> : null}
       {selectedProduct ? (
         <section className="rounded-2xl border border-border bg-card p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">

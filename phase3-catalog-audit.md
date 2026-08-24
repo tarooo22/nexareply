@@ -27,3 +27,5 @@
 The import commit path now receives and consumes the preview record ID. A completed preview returns its stored summary without any product mutation; an unfinished preview resolves an existing product by the same tenant-scoped SKU and updates it instead of attempting a duplicate insert. New SKU rows are created normally. Regression tests cover completed-preview replay and same-SKU update behavior; TypeScript and focused import/asset tests pass.
 
 The owner-facing product edit control and cursor pagination remain open items for the next Phase 3 increment. They are not claimed complete by the import-idempotency repair.
+
+The owner edit increment is now implemented with the existing protected `products.update` contract. Owners can open a prefilled Georgian edit form for brand, name, volume, price, stock, availability and description; mutation pending/error feedback is visible and the list refetches only after success. Cursor pagination remains the only confirmed Phase 3 catalog-scale gap.
