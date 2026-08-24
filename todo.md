@@ -404,3 +404,11 @@
 - [x] Add or extend build/config regression coverage for the shared-vendor chunk contract.
 - [x] Run TypeScript, full Vitest, production build, bundle-size comparison and public/protected route smoke QA without changing integrations or secrets.
 - [x] Save a checkpoint and report remaining owner-controlled Meta/billing dependencies.
+
+## Independent release hardening: runtime and accessibility
+
+- [x] Audit current browser/network/server logs, runtime warnings, focus/accessible-label contracts and public/protected route failure states for confirmed release gaps.
+- [x] Repair only confirmed client runtime, request-feedback or accessibility gaps without altering Meta, tenant, secret or billing-provider behavior.
+- [x] Add or extend regression coverage for every confirmed release-hardening change.
+- [x] Run TypeScript, full Vitest, production build and desktop/mobile public/protected smoke QA; record external-only blockers separately.
+- [x] Save a release-hardening checkpoint and report remaining owner-controlled dependencies.
