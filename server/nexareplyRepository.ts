@@ -108,7 +108,8 @@ export const nexareplyRepository = {
     return db.select({ organization: organizations, membership: organizationMemberships })
       .from(organizationMemberships)
       .innerJoin(organizations, eq(organizationMemberships.organizationId, organizations.id))
-      .where(eq(organizationMemberships.userId, userId));
+      .where(eq(organizationMemberships.userId, userId))
+      .orderBy(asc(organizations.createdAt), asc(organizations.id));
   },
 
   async ensureWorkspaceForUser(userId: number, userName?: string | null) {

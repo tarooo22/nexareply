@@ -329,3 +329,12 @@
 - [x] Add or extend Vitest coverage for every confirmed Phase 1 authorization, OAuth, redaction, and interaction contract.
 - [x] Run targeted security/UX review plus TypeScript, full Vitest, production build, and desktop/mobile smoke QA without changing the active Khavsi connection or managed secrets.
 - [x] Save a Phase 1 checkpoint and report the confirmed remediation, remaining owner-side blockers, and Phase 2 scope.
+
+## Master Plan — Phase 2: self-service onboarding, membership, and Meta connection UX
+
+- [x] Audit fresh-user workspace creation, organization switching, membership/invitation lifecycle, and authenticated onboarding completion states for confirmed self-service gaps.
+- [x] Improve only confirmed onboarding and membership UX/data-contract gaps while preserving server-derived tenant scope and owner/operator authorization.
+- [x] Validate the per-organization Meta connection flow remains owner-gated, tenant-isolated, secret-safe, and truthful about App Review/Live-mode prerequisites.
+- [x] Add or extend fresh-user, tenant-isolation, invitation, organization-switching, onboarding, and responsive UI regression coverage for confirmed Phase 2 changes.
+- [x] Run TypeScript, full Vitest, production build, and desktop/mobile smoke QA; preserve the active Khavsi connection and do not change managed secrets.
+- [x] Save a Phase 2 checkpoint and report the next confirmed product/automation vertical slice.
