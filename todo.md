@@ -354,3 +354,11 @@
 - [x] Add or extend knowledge/AI safety, tenant-isolation, handoff idempotency, quota, approval, and browser-secret regression coverage for confirmed Phase 4 changes.
 - [x] Run TypeScript, full Vitest, production build, and desktop/mobile Knowledge/AI UI smoke QA without invoking unapproved production automation or changing Meta connections/secrets.
 - [x] Save a Phase 4 checkpoint and report the durable Inbox automation/worker slice.
+
+## Master Plan — Phase 5: durable Inbox automation and truthful worker operations
+
+- [x] Audit queue/job schema, worker trigger, webhook scheduling, idempotency, lease/retry/DLQ operations, Inbox status presentation, and current 10-second SLA wording for confirmed gaps.
+- [x] Repair only confirmed queue observability, recovery, tenant-aware retry and operator status UX gaps; do not introduce in-process timers or claim an unconfigured 10-second production SLA.
+- [x] Add or extend repeated-event, job-idempotency, lease/retry/DLQ, tenant-isolation, recovery-control and secret-boundary regression coverage for confirmed Phase 5 changes.
+- [x] Run TypeScript, full Vitest, production build, and desktop/mobile Inbox/operations smoke QA without changing Meta connections or managed secrets.
+- [x] Save a Phase 5 checkpoint and report ticket/notification and analytics follow-up scope.
