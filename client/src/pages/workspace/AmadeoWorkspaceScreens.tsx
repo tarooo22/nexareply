@@ -762,10 +762,15 @@ function LegacyWorkspaceInboxScreen({ organizationId }: WorkspaceProps) {
 
 export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps) {
   const [query, setQuery] = useState("");
-  const products = trpc.nexareply.workspace.products.list.useQuery({
+  const [catalogCursors, setCatalogCursors] = useState<Array<{ brand: string; model: string; id: number } | null>>([null]);
+  const [catalogPage, setCatalogPage] = useState(0);
+  const products = trpc.nexareply.workspace.products.listPage.useQuery({
     organizationId,
     query: query || undefined,
+    cursor: catalogCursors[catalogPage] ?? undefined,
+    limit: 20,
   });
+  const productItems = products.data?.items ?? [];
   const assets = trpc.nexareply.workspace.products.assets.list.useQuery({
     organizationId,
   });
@@ -806,9 +811,9 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({ brand: "", fragranceName: "", volume: "", priceGel: "", stock: "0", availability: "", description: "" });
   useEffect(() => {
-    if (!selectedProductId && products.data?.[0])
-      setSelectedProductId(products.data[0].product.id);
-  }, [products.data, selectedProductId]);
+    if (!selectedProductId && productItems[0])
+      setSelectedProductId(productItems[0].product.id);
+  }, [productItems, selectedProductId]);
   const downloadCatalog = async () => {
     const result = await exportCsv.refetch();
     if (!result.data) return;
@@ -877,7 +882,7 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
           base64,
           fileName: file.name,
           mimeType: file.type as "image/jpeg" | "image/png" | "image/webp",
-          altText: `${products.data?.find(item => item.product.id === selectedProductId)?.product.model ?? "პროდუქტი"} ფოტო`,
+          altText: `${productItems.find(item => item.product.id === selectedProductId)?.product.model ?? "პროდუქტი"} ფოტო`,
         });
       }
       if (replaceAssetId)
@@ -894,10 +899,10 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
       setUploadingCount(0);
     }
   };
-  const selectedProduct = products.data?.find(
+  const selectedProduct = productItems.find(
     item => item.product.id === selectedProductId
   )?.product;
-  const editingEntry = products.data?.find(item => item.product.id === editingProductId);
+  const editingEntry = productItems.find(item => item.product.id === editingProductId);
   const selectedAssets = (assets.data ?? [])
     .filter(asset => asset.productId === selectedProductId)
     .sort(
@@ -976,7 +981,7 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
           </div>
           <input
             value={query}
-            onChange={event => setQuery(event.target.value)}
+            onChange={event => { setQuery(event.target.value); setCatalogCursors([null]); setCatalogPage(0); setSelectedProductId(null); }}
             placeholder="ბრენდი, პროდუქტი ან ხელმისაწვდომობა"
             className="mt-5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
           />
@@ -994,7 +999,7 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
                 </tr>
               </thead>
               <tbody>
-                {products.data?.map(({ product, variant }) => {
+                {productItems.map(({ product, variant }) => {
                   const primary = primaryByProduct.get(product.id);
                   return (
                     <tr
@@ -1065,13 +1070,20 @@ export function WorkspaceCatalogScreen({ organizationId, role }: WorkspaceProps)
                 })}
               </tbody>
             </table>
-            {!products.data?.length ? (
+            {!productItems.length ? (
               <StatePanel
                 kind="empty"
                 title="კატალოგი ცარიელია"
                 description="პირველი პროდუქტი დაამატეთ ფორმიდან ან ატვირთეთ CSV/XLSX სვეტებით: ბრენდი, პროდუქტის დასახელება, SKU, ვარიანტი, ფასი GEL, მარაგი, ხელმისაწვდომობა, აღწერა."
               />
             ) : null}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-sm">
+              <p className="text-muted-foreground">გვერდი {catalogPage + 1} · ნაჩვენებია {productItems.length} პროდუქტი</p>
+              <div className="flex gap-2">
+                <button type="button" disabled={catalogPage === 0 || products.isFetching} onClick={() => { setCatalogPage(value => Math.max(0, value - 1)); setSelectedProductId(null); }} className="min-h-10 rounded-xl border border-border px-3 text-sm font-bold disabled:opacity-50">წინა</button>
+                <button type="button" disabled={!products.data?.nextCursor || products.isFetching} onClick={() => { const next = products.data?.nextCursor; if (!next) return; setCatalogCursors(current => current[catalogPage + 1] ? current : [...current, next]); setCatalogPage(value => value + 1); setSelectedProductId(null); }} className="min-h-10 rounded-xl border border-border px-3 text-sm font-bold disabled:opacity-50">{products.isFetching ? "იტვირთება…" : "შემდეგი"}</button>
+              </div>
+            </div>
           </div>
         </article>
         <aside className="rounded-2xl border border-border bg-card p-6">

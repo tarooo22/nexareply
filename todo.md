@@ -342,7 +342,7 @@
 ## Master Plan — Phase 3: tenant-scoped product catalog and asset workflows
 
 - [x] Audit the existing catalog schema, UI, repository, image storage, import/export, pagination, archive and authorization contracts against the approved Phase 3 acceptance criteria.
-- [ ] Repair only confirmed catalog/asset/import-export gaps while retaining tenant-scoped storage keys, server-side validation and owner/operator authorization.
-- [ ] Add or extend catalog, image-validation, import idempotency, export, archive, pagination and tenant-isolation regression coverage for confirmed Phase 3 changes.
-- [ ] Run TypeScript, full Vitest, production build, and desktop/mobile catalog smoke QA without changing any Meta connection or managed secret.
-- [ ] Save a Phase 3 checkpoint and report the next AI/knowledge vertical slice.
+- [x] Repair only confirmed catalog/asset/import-export gaps while retaining tenant-scoped storage keys, server-side validation and owner/operator authorization.
+- [x] Add or extend catalog, image-validation, import idempotency, export, archive, pagination and tenant-isolation regression coverage for confirmed Phase 3 changes.
+- [x] Run TypeScript, full Vitest, production build, and desktop/mobile catalog smoke QA without changing any Meta connection or managed secret.
+- [x] Save a Phase 3 checkpoint and report the next AI/knowledge vertical slice.

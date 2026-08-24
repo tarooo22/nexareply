@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, asc, count, desc, eq, like, lt, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, like, lt, or, sql } from "drizzle-orm";
 import {
   accountDeletionRequests,
   auditEvents,
@@ -301,6 +301,30 @@ export const nexareplyRepository = {
       .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.organizationId, scope.organizationId)))
       .where(and(...conditions))
       .orderBy(asc(products.brand), asc(products.model));
+  },
+
+  async listProductPage(scope: WorkspaceScope, input: { query?: string; includeArchived?: boolean; cursor?: { brand: string; model: string; id: number }; limit: number }) {
+    const db = await requireDb();
+    const conditions = [eq(products.organizationId, scope.organizationId)];
+    if (!input.includeArchived) conditions.push(eq(products.active, true));
+    if (input.query?.trim()) {
+      const term = `%${input.query.trim()}%`;
+      conditions.push(or(like(products.brand, term), like(products.model, term), like(productVariants.color, term))!);
+    }
+    if (input.cursor) conditions.push(or(
+      gt(products.brand, input.cursor.brand),
+      and(eq(products.brand, input.cursor.brand), gt(products.model, input.cursor.model)),
+      and(eq(products.brand, input.cursor.brand), eq(products.model, input.cursor.model), gt(products.id, input.cursor.id)),
+    )!);
+    const rows = await db.select({ product: products, variant: productVariants })
+      .from(products)
+      .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.organizationId, scope.organizationId)))
+      .where(and(...conditions))
+      .orderBy(asc(products.brand), asc(products.model), asc(products.id))
+      .limit(input.limit + 1);
+    const items = rows.slice(0, input.limit);
+    const tail = items.at(-1)?.product;
+    return { items, nextCursor: rows.length > input.limit && tail ? { brand: tail.brand, model: tail.model, id: tail.id } : null };
   },
 
   async listProductAssets(scope: WorkspaceScope, productId?: number) {

@@ -29,3 +29,9 @@ The import commit path now receives and consumes the preview record ID. A comple
 The owner-facing product edit control and cursor pagination remain open items for the next Phase 3 increment. They are not claimed complete by the import-idempotency repair.
 
 The owner edit increment is now implemented with the existing protected `products.update` contract. Owners can open a prefilled Georgian edit form for brand, name, volume, price, stock, availability and description; mutation pending/error feedback is visible and the list refetches only after success. Cursor pagination remains the only confirmed Phase 3 catalog-scale gap.
+
+## Cursor contract for the final Phase 3 increment
+
+The page cursor will be `{ brand, model, id }`, matching the catalog's existing deterministic order `brand ASC, model ASC, id ASC`. The repository will first constrain every query by `organizationId` and active status, then apply search conditions, then apply a strict lexicographic cursor predicate. It will fetch `limit + 1` rows, return at most `limit` product/variant items, and derive `nextCursor` only from the returned tail. The UI will reset accumulated rows and cursor history whenever the tenant or search text changes, then expose explicit “load more” status and recovery feedback. No client cursor can bypass `workspaceScope()` authorization.
+
+The cursor contract is implemented as `products.listPage`. The client now uses page-local cursor history, resets it on a new search, provides disabled/loading-aware next/previous controls, and keeps all asset/edit/import behavior on the current tenant page. TypeScript, the full Vitest suite, and the production build passed after the change. The existing production build large-chunk advisory remains a separate performance task.
