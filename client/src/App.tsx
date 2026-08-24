@@ -1,18 +1,18 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/NotFound";
 import { lazy, Suspense } from "react";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { PageMetadata } from "./components/PageMetadata";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
-import PublicPage from "./pages/PublicPage";
-import InvitationAccept from "./pages/InvitationAccept";
-import AuthPage from "./pages/AuthPage";
 
 const DemoWorkspace = lazy(() => import("./pages/DemoWorkspace"));
 const AuthenticatedWorkspace = lazy(() => import("./pages/AuthenticatedWorkspace"));
+const PublicPage = lazy(() => import("./pages/PublicPage"));
+const InvitationAccept = lazy(() => import("./pages/InvitationAccept"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 function Router() {
   // make sure to consider if you need authentication for certain routes

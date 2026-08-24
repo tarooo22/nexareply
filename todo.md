@@ -378,3 +378,13 @@
 - [x] Add or extend analytics, entitlement, tenant-isolation and billing-placeholder regression coverage for confirmed Phase 7 changes.
 - [x] Run TypeScript, full Vitest, production build, and desktop/mobile Analytics/Settings smoke QA without changing Meta connections or managed secrets.
 - [x] Save a Phase 7 checkpoint and report the exact external billing/Meta rollout requirements.
+
+## Independent improvements: performance, UI/UX polish, and billing design
+
+- [x] Audit the production bundle graph, route boundaries, workspace interaction states, and current billing/upgrade UI for safe, confirmed improvement opportunities.
+- [x] Implement safe lazy-loading/code-splitting for non-critical public, demo and authenticated workspace routes without changing protected data contracts.
+- [x] Refine confirmed responsive UI/UX gaps in navigation, loading/error/empty states, focus feedback and Georgian-first hierarchy.
+- [x] Design owner-facing billing and upgrade states using only server-derived plan/usage data; do not create checkout, provider calls, prices, transactions or subscription claims.
+- [x] Add or extend route loading, navigation, responsive UI, plan-visibility and no-checkout regression coverage for confirmed changes.
+- [x] Run TypeScript, full Vitest, production build, bundle-size comparison and desktop/mobile smoke QA; preserve Meta connections and managed secrets.
+- [x] Save a checkpoint and report the shipped independent improvements plus owner-controlled dependencies still deferred.
