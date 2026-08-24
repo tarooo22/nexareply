@@ -350,6 +350,14 @@ export function WorkspaceOverviewScreen({
     );
   const data = analytics.data!;
   const unread = alerts.data?.filter(item => !item.readAt).length ?? 0;
+  const metaStatus = meta.data?.status ?? "unconfigured";
+  const metaBadge = metaStatus === "connected"
+    ? { label: "კავშირი აქტიურია", className: "bg-emerald-500/10 text-emerald-600" }
+    : metaStatus === "delivery_failed"
+      ? { label: "მიწოდება შეფერხებულია", className: "bg-rose-500/10 text-rose-600" }
+      : metaStatus === "verification_failed"
+        ? { label: "დადასტურება საჭიროა", className: "bg-amber-500/10 text-amber-700 dark:text-amber-300" }
+        : { label: "კავშირი საჭიროებს მოქმედებას", className: "bg-secondary text-muted-foreground" };
   return (
     <div className="mt-5 space-y-5">
       <OnboardingChecklist
@@ -426,7 +434,7 @@ export function WorkspaceOverviewScreen({
               <p className="text-sm font-bold text-primary">Messenger Page</p>
               <h2 className="mt-1 font-black">კავშირის მდგომარეობა</h2>
             </div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-600"><ShieldCheck className="size-4" /> უსაფრთხო კავშირი</span>
+            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${metaBadge.className}`}><ShieldCheck className="size-4" /> {metaBadge.label}</span>
           </div>
           {role === "owner" ? (
             <div className="mt-5 rounded-xl border border-border bg-secondary/35 p-4">
@@ -434,9 +442,13 @@ export function WorkspaceOverviewScreen({
                 {meta.data?.page?.name ?? "Page არ არის არჩეული"}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {meta.data?.status === "connected"
+                {metaStatus === "connected"
                   ? "Webhook subscription დაკავშირებულია."
-                  : "ინტეგრაციების გვერდიდან დაასრულეთ Page connection."}
+                  : metaStatus === "verification_failed"
+                    ? "Page-ის დადასტურება ან webhook subscription ვერ დასრულდა. ინტეგრაციებიდან გაიმეორეთ ავტორიზაცია."
+                    : metaStatus === "delivery_failed"
+                      ? "Messenger delivery შეფერხებულია. ინტეგრაციებიდან გადაამოწმეთ კავშირი."
+                      : "ინტეგრაციების გვერდიდან დაასრულეთ Page connection."}
               </p>
             </div>
           ) : (

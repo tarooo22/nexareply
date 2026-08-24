@@ -17,7 +17,7 @@ After callback, NexaReply resolves the returned Pages server-side. One usable Pa
 | `pages_show_list` | Discover Pages returned to the authorized owner through `/me/accounts`. |
 | `pages_manage_metadata` | Validate and subscribe the selected Page through `/{page-id}/subscribed_apps`. |
 | `pages_messaging` | Send Messenger replies through `/{page-id}/messages`. |
-| `pages_read_engagement` | Retained in the generic fallback scope for the current test configuration; no separate UI claim is made from this permission alone. |
+| `pages_read_engagement` | The direct current OAuth/manual connection flow does not request Page content, insights, followers, or metadata by `/{page-id}` lookup. Do not request it unless Meta later documents it as a necessary dependency for a separately retained fallback. |
 | `business_management` | Used only by the current optional System User fallback path when `/me/accounts` is empty and Meta exposes a client business token path. It is not evidence that every direct Page-owner flow needs this permission. |
 
 ## Reviewer evidence and privacy boundary

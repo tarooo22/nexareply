@@ -139,13 +139,6 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     expect(JSON.stringify(response)).not.toContain("internal-details-must-not-leak");
   });
 
-  it("returns the managed Verify Token only through the explicit owner setup getter", () => {
-    process.env.META_VERIFY_TOKEN = "owner-visible-verify-token";
-    expect(metaMessengerService.getWebhookVerifyToken()).toEqual({ enabled: true, verifyToken: "owner-visible-verify-token" });
-    process.env.ENABLE_META_MANUAL_SETUP = "false";
-    expect(metaMessengerService.getWebhookVerifyToken()).toEqual({ enabled: false, verifyToken: null });
-  });
-
   it("validates the webhook challenge and X-Hub-Signature-256 over the raw request body", () => {
     const rawBody = Buffer.from('{"object":"page","entry":[]}');
     const signature = `sha256=${crypto.createHmac("sha256", process.env.META_APP_SECRET!).update(rawBody).digest("hex")}`;
@@ -276,18 +269,23 @@ describe("Meta Messenger managed configuration and webhook security", () => {
 
   it("serializes owner Meta status without token, credential, or secret fields", async () => {
     vi.spyOn(nexareplyRepository, "getWorkspaceScope").mockResolvedValue(scope);
-    vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue({ pageId: "page-1", pageName: "TechZone", status: "connected", lastError: null, webhookVerifiedAt: null, lastInboundAt: null, lastDeliveryAt: null, accessToken: "must-not-leak", encryptedBlob: "must-not-leak" } as never);
+    vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue({ pageId: "page-1", pageName: "TechZone", status: "connected", lastError: "Invalid OAuth access token: internal-details-must-not-leak", webhookVerifiedAt: null, lastInboundAt: null, lastDeliveryAt: null, accessToken: "must-not-leak", encryptedBlob: "must-not-leak" } as never);
     const response = await appRouter.createCaller(ownerContext()).nexareply.workspace.owner.meta.status({ organizationId: 7 });
     expect(response).toMatchObject({ configured: true, readiness: { appCredentials: true, webhookChallenge: true, pageDelivery: true, oauthRedirect: true }, status: "connected", page: { id: "page-1", name: "TechZone" } });
     expect(JSON.stringify(response)).not.toMatch(/accessToken|encrypted|secret|must-not-leak/i);
+    expect(JSON.stringify(response)).not.toContain("verify-token");
+    expect(response.lastError).toBe("invalid_or_expired_token");
+    expect((appRouter.createCaller(ownerContext()).nexareply.workspace.owner.meta as Record<string, unknown>)).not.toHaveProperty("verifyToken");
   });
 
   it("returns a safe delivery-failed state when the server-side Graph API request is rejected", async () => {
     vi.spyOn(nexareplyRepository, "getMetaConnection").mockResolvedValue({ pageId: "page-1", status: "connected" } as never);
     const updateStatus = vi.spyOn(nexareplyRepository, "updateMetaConnectionStatus").mockResolvedValue(undefined);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: { message: "Provider rejected request" } }) }));
+    const graph = vi.fn().mockResolvedValue({ ok: false, status: 400, json: async () => ({ error: { message: "Provider rejected request" } }) });
+    vi.stubGlobal("fetch", graph);
     await expect(metaMessengerService.sendText(scope, { psid: "psid-1", text: "ტესტი" })).resolves.toEqual({ delivered: false, status: "delivery_failed", error: "Meta message delivery failed." });
     expect(updateStatus).toHaveBeenCalledWith(scope, expect.objectContaining({ status: "delivery_failed", delivery: true }));
+    expect(new URL(String(graph.mock.calls[0]?.[0])).searchParams.get("appsecret_proof")).toBe(crypto.createHmac("sha256", "app-secret").update("page-access-token-for-tests").digest("hex"));
   });
 
   it("stops an outbound Page send at the tenant rate limit before calling Graph", async () => {
@@ -315,6 +313,7 @@ describe("Meta Messenger managed configuration and webhook security", () => {
     const url = new URL(start.authorizationUrl!);
     expect(url.searchParams.get("config_id")).toBeNull();
     expect(url.searchParams.get("scope")).toContain("pages_messaging");
+    expect(url.searchParams.get("scope")).not.toContain("pages_read_engagement");
   });
 
   it("rejects manual Page credentials while the explicit manual setup kill-switch is enabled", async () => {
@@ -347,6 +346,10 @@ describe("Meta Messenger managed configuration and webhook security", () => {
       status: "connected",
       page: { id: "page-auto", name: "Auto Page" },
     });
+    const identityRequest = new URL(String((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[3]?.[0]));
+    expect(identityRequest.pathname).toBe("/v24.0/me");
+    expect(identityRequest.searchParams.get("fields")).toBe("id,name");
+    expect(identityRequest.searchParams.get("appsecret_proof")).toBe(crypto.createHmac("sha256", "app-secret").update("auto-page-token").digest("hex"));
   });
 
   it("keeps a multiple-Page result in the picker instead of choosing silently", async () => {
@@ -380,7 +383,9 @@ describe("Meta Messenger managed configuration and webhook security", () => {
 
     await expect(metaMessengerService.disconnect(scope)).resolves.toEqual({ configured: true, status: "disabled" });
     expect(graph).toHaveBeenCalledTimes(1);
-    expect(new URL(graph.mock.calls[0]?.[0] as string).pathname).toContain("/page-disconnect/subscribed_apps");
+    const requestUrl = new URL(graph.mock.calls[0]?.[0] as string);
+    expect(requestUrl.pathname).toContain("/page-disconnect/subscribed_apps");
+    expect(requestUrl.searchParams.get("appsecret_proof")).toBe(crypto.createHmac("sha256", "app-secret").update("disconnect-page-token").digest("hex"));
     expect(clear).toHaveBeenCalledWith(scope);
   });
 

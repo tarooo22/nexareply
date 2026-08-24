@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, BadgeCheck, Building2, Check, CheckCircle2, ChevronRight, Copy, ExternalLink, KeyRound, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Building2, CheckCircle2, ChevronRight, ExternalLink, KeyRound, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 
@@ -46,7 +46,6 @@ function Feedback({ title, body, tone = "neutral" }: { title: string; body: stri
 export function MetaConnectionWizard({ organizationId }: { organizationId: number }) {
   const status = trpc.nexareply.workspace.owner.meta.status.useQuery({ organizationId });
   const manualSetupEnabled = status.data?.readiness.manualSetupEnabled ?? false;
-  const verifyTokenQuery = trpc.nexareply.workspace.owner.meta.verifyToken.useQuery({ organizationId }, { enabled: manualSetupEnabled });
   const startOAuth = trpc.nexareply.workspace.owner.meta.startOAuth.useMutation();
   const selectPage = trpc.nexareply.workspace.owner.meta.selectPage.useMutation();
   const manualConnect = trpc.nexareply.workspace.owner.meta.manualConnect.useMutation();
@@ -56,7 +55,6 @@ export function MetaConnectionWizard({ organizationId }: { organizationId: numbe
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [pageId, setPageId] = useState("");
   const [pageAccessToken, setPageAccessToken] = useState("");
-  const [copiedField, setCopiedField] = useState<"webhook" | "verify" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pages = trpc.nexareply.workspace.owner.meta.oauthPages.useQuery(
     { organizationId, sessionId: sessionId ?? "invalid-session" },
@@ -87,6 +85,7 @@ export function MetaConnectionWizard({ organizationId }: { organizationId: numbe
   useEffect(() => () => setPageAccessToken(""), []);
 
   const connected = status.data?.status === "connected";
+  const isRoleUserTestMode = !status.data?.readiness.businessLoginConfiguration;
   const connectionRecoveryMessage = useMemo(() => {
     if (status.data?.status === "verification_failed") return "Page-ის დადასტურება ან webhook subscription ვერ დასრულდა. ძველი credential დაცულია; ხელახლა გაიარე Facebook ავტორიზაცია.";
     if (status.data?.status === "delivery_failed") return "Messenger delivery შეფერხებულია. გადაამოწმე Page-ის უფლებები და ხელახლა დააკავშირე Page.";
@@ -150,16 +149,6 @@ export function MetaConnectionWizard({ organizationId }: { organizationId: numbe
       },
       onError: () => setError("გვერდის არჩევა ვერ მოხერხდა. სცადე თავიდან."),
     });
-  };
-
-  const copySetupValue = async (field: "webhook" | "verify", value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedField(field);
-      window.setTimeout(() => setCopiedField((current) => current === field ? null : current), 1800);
-    } catch {
-      setError("კოპირება ვერ მოხერხდა. მონიშნე ტექსტი და დააკოპირე ხელით.");
-    }
   };
 
   const submitManual = (event: React.FormEvent<HTMLFormElement>) => {
@@ -232,6 +221,8 @@ export function MetaConnectionWizard({ organizationId }: { organizationId: numbe
             <span className="inline-flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 text-xs font-bold"><ShieldCheck className="size-4 text-primary" />მხოლოდ owner წვდომა</span>
           </div>
           <div className="mt-7"><StageProgress stage={stage} /></div>
+          {isRoleUserTestMode ? <div className="mt-5"><Feedback tone="warning" title="სატესტო Meta ავტორიზაცია" body="Facebook Login for Business-ის production configuration ჯერ არ არის აქტიური. ამ OAuth გზას ამ ეტაპზე მხოლოდ Meta App-ის Admin/Developer/Tester როლების მქონე მომხმარებლები გამოცდიან; გარე მომხმარებლის self-service მიბმა App Review და Live რეჟიმის შემდეგ შემოწმდება." /></div> : null}
+          {connectionRecoveryMessage ? <div className="mt-5"><Feedback tone="warning" title="კავშირის აღდგენა" body={connectionRecoveryMessage} /></div> : null}
           <AnimatePresence mode="wait">
             {stage === "success" ? (
               <motion.div key="success" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="mt-7 space-y-5">
@@ -248,13 +239,12 @@ export function MetaConnectionWizard({ organizationId }: { organizationId: numbe
               </motion.div>
             ) : (
               <motion.div key="method" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="mt-7">
-                <div className="rounded-2xl border border-border bg-secondary/20 p-5"><h3 className="font-black">მიბმის მეთოდი</h3><p className="mt-1 text-sm text-muted-foreground">რეკომენდებულია Facebook ავტორიზაცია. თუ გინდა მონაცემების ხელით შეყვანა, აირჩიე ალტერნატიული კონფიგურაცია.</p><div className="mt-5 grid gap-3 sm:grid-cols-2"><button type="button" onClick={() => setMode("oauth")} className={`rounded-xl border p-4 text-left transition ${mode === "oauth" ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-border bg-card hover:border-primary/50"}`}><ExternalLink className="size-5 text-primary" /><span className="mt-3 block font-black">Facebook-ით ავტორიზაცია</span><span className="mt-1 block text-sm leading-5 text-muted-foreground">აირჩიე შენი Page უსაფრთხო Facebook ფანჯრიდან.</span><span className="mt-4 block text-xs font-bold text-primary">რეკომენდებულია</span></button>{manualSetupEnabled ? <button type="button" onClick={() => setMode("manual")} className={`rounded-xl border p-4 text-left transition ${mode === "manual" ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-border bg-card hover:border-primary/50"}`}><KeyRound className="size-5 text-primary" /><span className="mt-3 block font-black">ხელით კონფიგურაცია</span><span className="mt-1 block text-sm leading-5 text-muted-foreground">Webhook URL, Verify Token, Page ID და Page Access Token.</span><span className="mt-4 block text-xs font-bold text-primary">ალტერნატიული მეთოდი</span></button> : null}</div></div>
+                <div className="rounded-2xl border border-border bg-secondary/20 p-5"><h3 className="font-black">მიბმის მეთოდი</h3><p className="mt-1 text-sm text-muted-foreground">რეკომენდებულია Facebook ავტორიზაცია. თუ გინდა მონაცემების ხელით შეყვანა, აირჩიე ალტერნატიული კონფიგურაცია.</p><div className="mt-5 grid gap-3 sm:grid-cols-2"><button type="button" onClick={() => setMode("oauth")} className={`rounded-xl border p-4 text-left transition ${mode === "oauth" ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-border bg-card hover:border-primary/50"}`}><ExternalLink className="size-5 text-primary" /><span className="mt-3 block font-black">Facebook-ით ავტორიზაცია</span><span className="mt-1 block text-sm leading-5 text-muted-foreground">აირჩიე შენი Page უსაფრთხო Facebook ფანჯრიდან.</span><span className="mt-4 block text-xs font-bold text-primary">რეკომენდებულია</span></button>{manualSetupEnabled ? <button type="button" onClick={() => setMode("manual")} className={`rounded-xl border p-4 text-left transition ${mode === "manual" ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-border bg-card hover:border-primary/50"}`}><KeyRound className="size-5 text-primary" /><span className="mt-3 block font-black">ხელით დაკავშირება</span><span className="mt-1 block text-sm leading-5 text-muted-foreground">Page ID და იმავე გვერდის Page Access Token.</span><span className="mt-4 block text-xs font-bold text-primary">ალტერნატიული მეთოდი</span></button> : null}</div></div>
                 {mode === "oauth" ? (
                   <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border p-5"><div><p className="font-black">მზად ხარ Facebook-ზე გადასასვლელად?</p><p className="mt-1 text-sm text-muted-foreground">დაბრუნების შემდეგ აქვე აირჩევ გვერდს.</p></div><button type="button" onClick={beginOAuth} disabled={isSubmitting} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-50">{startOAuth.isPending ? <Loader2 className="size-4 animate-spin" /> : <ExternalLink className="size-4" />}Facebook-ით გაგრძელება <ChevronRight className="size-4" /></button></div>
                 ) : manualSetupEnabled ? (
                   <div className="mt-5 space-y-5">
-                    <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5"><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 size-5 text-primary" /><div><h3 className="font-black">Facebook Webhook კონფიგურაცია</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">ეს ორი მნიშვნელობა Meta Developer Dashboard-ში Webhooks-ის კონფიგურაციისას გამოიყენე.</p></div></div><div className="mt-5 grid gap-4"><div><label className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Webhook URL</label><div className="mt-2 flex gap-2"><input readOnly value="https://nexareply-2chxuc4s.manus.space/api/integrations/meta/webhook" className="min-w-0 flex-1 rounded-xl border border-input bg-background px-3 py-3 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring" /><button type="button" onClick={() => void copySetupValue("webhook", "https://nexareply-2chxuc4s.manus.space/api/integrations/meta/webhook")} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-xs font-bold hover:bg-secondary" aria-label="Webhook URL-ის კოპირება">{copiedField === "webhook" ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}<span className="hidden sm:inline">{copiedField === "webhook" ? "დაკოპირდა" : "კოპირება"}</span></button></div></div><div><label className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Verify Token</label><div className="mt-2 flex gap-2"><input readOnly type="text" value={verifyTokenQuery.data?.verifyToken ?? "Verify Token ვერ ჩაიტვირთა"} className="min-w-0 flex-1 rounded-xl border border-input bg-background px-3 py-3 text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring" /><button type="button" disabled={!verifyTokenQuery.data?.verifyToken} onClick={() => verifyTokenQuery.data?.verifyToken && void copySetupValue("verify", verifyTokenQuery.data.verifyToken)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-xs font-bold hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50" aria-label="Verify Token-ის კოპირება">{copiedField === "verify" ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}<span className="hidden sm:inline">{copiedField === "verify" ? "დაკოპირდა" : "კოპირება"}</span></button></div><p className="mt-2 text-xs leading-5 text-muted-foreground">ეს საერთო App-level Verify Token-ია. გამოიყენე Meta Dashboard-ში ზუსტად იგივე მნიშვნელობა; Page Access Token-ისგან განსხვავებით, ის Page-ზე წვდომას არ იძლევა.</p></div></div></div>
-                    <div className="rounded-2xl border border-border bg-card p-5"><h3 className="font-black">Facebook Webhook-ის კონფიგურაციის ინსტრუქცია</h3><ol className="mt-4 space-y-2 text-sm leading-6 text-muted-foreground"><li><span className="font-black text-foreground">1.</span> გახსენი Facebook Developer Console → შენი App.</li><li><span className="font-black text-foreground">2.</span> შედი Messenger → Settings → Webhooks.</li><li><span className="font-black text-foreground">3.</span> ჩასვი Webhook URL და Verify Token.</li><li><span className="font-black text-foreground">4.</span> მონიშნე <span className="font-bold text-foreground">messages</span> event.</li><li><span className="font-black text-foreground">5.</span> შეინახე ცვლილება და დაადასტურე Page-ის webhook.</li></ol></div>
+                    <Feedback tone="neutral" title="ხელით მიბმის შესახებ" body="NexaReply-ის საერთო Webhook კონფიგურაციას პლატფორმა მართავს. შენ შეიყვან მხოლოდ Page ID-ს და იმავე გვერდის Page Access Token-ს; სერვერი კავშირსა და Messenger subscription-ს ავტომატურად და უსაფრთხოდ გადაამოწმებს." />
                     <form onSubmit={submitManual} className="rounded-2xl border border-border bg-card p-5"><div className="flex items-start gap-3"><KeyRound className="mt-0.5 size-5 text-primary" /><div><h3 className="font-black">Facebook პარამეტრები</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">შეიყვანე Page ID და Page Access Token. Token მხოლოდ სერვერზე გადამოწმდება და დაშიფრულ vault-ში შეინახება.</p></div></div><div className="mt-5 grid gap-4"><label className="grid gap-2 text-sm font-bold">Facebook გვერდის ID<input required inputMode="numeric" pattern="[0-9]{5,30}" value={pageId} onChange={(event) => setPageId(event.target.value.replace(/\D/g, ""))} placeholder="მაგ: 123456789012345" className="h-11 rounded-xl border border-input bg-background px-3 py-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring" /></label><label className="grid gap-2 text-sm font-bold">Facebook Page Access Token <span className="font-normal text-muted-foreground">(ცვლილებებისთვის შეიყვანე)</span><input required type="password" autoComplete="off" spellCheck={false} value={pageAccessToken} onChange={(event) => setPageAccessToken(event.target.value)} placeholder="EAA…" className="h-11 rounded-xl border border-input bg-background px-3 py-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring" /></label></div><p className="mt-4 text-xs leading-5 text-muted-foreground">Token არასოდეს გამოჩნდება UI-ში, analytics-ში ან audit log-ში.</p><button disabled={isSubmitting || pageId.length < 5 || pageAccessToken.length < 20} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-50">{manualConnect.isPending ? <Loader2 className="size-4 animate-spin" /> : <BadgeCheck className="size-4" />}შენახვა და შემოწმება</button></form>
                   </div>
                 ) : <Feedback tone="neutral" title="დამატებითი დადასტურება" body="ხელით Page ID და token-ით დაკავშირება ამ გარემოში გამორთულია. გამოიყენე Facebook-ით უსაფრთხო ავტორიზაცია." />}

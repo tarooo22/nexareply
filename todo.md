@@ -320,3 +320,12 @@
 - [x] Prepare safe Georgian owner-side instructions for the remaining Meta Dashboard actions and distinguish code-ready versus owner-dependent items.
 - [x] Validate non-destructive project readiness for the external-account OAuth retest and confirm no secret or active connection changes were made.
 - [x] Report the exact remaining blockers and next safe action.
+
+## Master Plan — Phase 1: production baseline and truthful self-service readiness
+
+- [x] Audit current schema, repositories, routers, Meta adapter, queue/worker, UI routes, tests, and configuration boundaries; classify confirmed code gaps separately from owner-controlled Meta prerequisites.
+- [x] Produce a source-grounded endpoint, authorization, tenant-data-flow, and secret-boundary matrix for registration, Meta OAuth/manual connection, webhook, Inbox, AI, tickets, catalog, knowledge, analytics, billing hooks, and workers.
+- [x] Verify and repair only confirmed Phase 1 self-service readiness gaps: truthful role-only/public Meta status, owner-gated manual setup, explicit connection feedback, and no client-side secret exposure.
+- [x] Add or extend Vitest coverage for every confirmed Phase 1 authorization, OAuth, redaction, and interaction contract.
+- [x] Run targeted security/UX review plus TypeScript, full Vitest, production build, and desktop/mobile smoke QA without changing the active Khavsi connection or managed secrets.
+- [x] Save a Phase 1 checkpoint and report the confirmed remediation, remaining owner-side blockers, and Phase 2 scope.

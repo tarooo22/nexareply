@@ -23,7 +23,7 @@
 3. Save/verify those fields in the Meta Dashboard. Do not change App secret, Client token, webhook callback, verify token, or existing Messenger subscription.
 4. In the existing business portfolio, begin and complete **Business Verification** with the legal/business information Meta requests. This is an owner action; credentials and documents must remain with the owner.
 5. When Business Verification is complete, review and submit the now-available **Access Verification** if Meta requires it.
-6. Review every permission requested for the existing Facebook Login for Business and Messenger workflow. Request any Meta review/advanced access that the dashboard requires for `pages_show_list`, `pages_read_engagement`, `pages_manage_metadata`, and `pages_messaging`.
+6. Review every permission requested for the existing Facebook Login for Business and Messenger workflow. Request only the current direct-flow permissions that the dashboard requires: `pages_show_list`, `pages_manage_metadata`, and `pages_messaging`. Keep `business_management` only if the optional client-business/System User fallback remains demonstrably necessary; do not request `pages_read_engagement` for the current Page-token self-identity flow.
 7. Only when the dashboard reports the requirements complete, confirm the App’s public/Live availability according to Meta’s final confirmation dialog.
 8. Use a Facebook account that is neither the App admin nor a tester to run the NexaReply OAuth flow. That user needs Facebook access with full control of the selected Page. Confirm that only the user’s own Page is shown and no Page token is exposed.
 

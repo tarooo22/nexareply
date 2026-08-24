@@ -270,10 +270,6 @@ export const nexareplyRouter = router({
       integrationStates: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => nexareplyRepository.listIntegrationStates(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
       meta: router({
         status: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => metaMessengerService.getConnectionStatus(await workspaceScope(ctx.user.id, input.organizationId, "owner"))),
-        verifyToken: protectedProcedure.input(organizationInput).query(async ({ ctx, input }) => {
-          await workspaceScope(ctx.user.id, input.organizationId, "owner");
-          return metaMessengerService.getWebhookVerifyToken();
-        }),
         startOAuth: protectedProcedure.input(organizationInput).mutation(async ({ ctx, input }) => {
           const scope = await workspaceScope(ctx.user.id, input.organizationId, "owner");
           await requireEntitlement(scope, "meta_channel");

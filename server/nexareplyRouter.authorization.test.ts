@@ -36,7 +36,6 @@ describe("owner-only NexaReply router procedures", () => {
     const caller = appRouter.createCaller(operatorContext());
     await expect(caller.nexareply.workspace.owner.integrationStates({ organizationId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.nexareply.workspace.owner.meta.status({ organizationId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(caller.nexareply.workspace.owner.meta.verifyToken({ organizationId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.nexareply.workspace.owner.meta.startOAuth({ organizationId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.nexareply.workspace.memberships.list({ organizationId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.nexareply.workspace.memberships.setRole({ organizationId: 1, userId: 99, role: "operator" })).rejects.toMatchObject({ code: "FORBIDDEN" });

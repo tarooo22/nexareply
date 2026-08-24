@@ -157,8 +157,13 @@ function classifyManualMetaFailure(error: unknown, stage: "page" | "webhook"): M
 }
 
 function safeProviderError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unknown Meta request failure";
-  return message.slice(0, 500);
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  if (message.includes("invalid oauth") || message.includes("access token") || message.includes("session has expired")) return "invalid_or_expired_token";
+  if (message.includes("permission") || message.includes("not authorized") || message.includes("requires")) return "missing_permissions";
+  if (message.includes("rate limit") || message.includes("too many calls")) return "provider_rate_limited";
+  if (message.includes("timeout") || message.includes("network") || message.includes("fetch failed")) return "provider_unavailable";
+  if (message.includes("page identity could not be verified")) return "page_identity_unverified";
+  return "meta_request_failed";
 }
 
 async function graphRequest<T>(path: string, input: { method?: "GET" | "POST" | "DELETE"; accessToken?: string; appSecretProof?: string; body?: Record<string, unknown>; bodyEncoding?: "json" | "form" } = {}) {
@@ -295,12 +300,6 @@ export const metaMessengerService = {
     return isManualMetaSetupEnabled();
   },
 
-  getWebhookVerifyToken() {
-    if (!isManualMetaSetupEnabled()) return { enabled: false as const, verifyToken: null };
-    const verifyToken = readWebhookVerifyToken();
-    return verifyToken ? { enabled: true as const, verifyToken } : { enabled: false as const, verifyToken: null };
-  },
-
   createOAuthStart(scope: WorkspaceScope) {
     const config = readMetaOAuthConfig();
     if (!config) return { configured: false as const, authorizationUrl: null, sessionId: null };
@@ -317,7 +316,7 @@ export const metaMessengerService = {
       authorizationUrl.searchParams.set("config_id", businessLoginConfigId);
     } else {
       // Preserve the App Admin/Developer/Tester-compatible authorization path until a configuration ID is supplied.
-      authorizationUrl.searchParams.set("scope", "business_management,pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging");
+      authorizationUrl.searchParams.set("scope", "business_management,pages_show_list,pages_manage_metadata,pages_messaging");
     }
     return { configured: true as const, authorizationUrl: authorizationUrl.toString(), sessionId, stateHash: stateHash(state), expiresAt: new Date(Date.now() + META_OAUTH_TTL_MS) };
   },
@@ -389,7 +388,7 @@ export const metaMessengerService = {
     const selectedPageToken = openMetaPageToken(staged.encryptedPageToken);
     const selectedPageAppSecretProof = appSecretProof(selectedPageToken, config.appSecret);
     try {
-      const verifiedPage = await graphRequest<{ id?: string; name?: string }>(`${encodeURIComponent(selected.id)}?fields=id,name`, {
+      const verifiedPage = await graphRequest<{ id?: string; name?: string }>("me?fields=id,name", {
         accessToken: selectedPageToken,
         appSecretProof: selectedPageAppSecretProof,
       });
@@ -464,7 +463,7 @@ export const metaMessengerService = {
       status: connection?.status ?? "unconfigured",
       page: connection?.pageId && connection.pageName ? { id: connection.pageId, name: connection.pageName } : null,
       credentialMode: connection?.credentialMode ?? "none",
-      lastError: connection?.lastError ?? null,
+      lastError: connection?.lastError ? safeProviderError(new Error(connection.lastError)) : null,
       webhookVerifiedAt: connection?.webhookVerifiedAt ?? null,
       lastInboundAt: connection?.lastInboundAt ?? null,
       lastDeliveryAt: connection?.lastDeliveryAt ?? null,
@@ -490,12 +489,18 @@ export const metaMessengerService = {
   },
 
   async disconnect(scope: WorkspaceScope) {
-    if (!readMetaOAuthConfig()) return { configured: false as const, status: "unconfigured" as const };
+    const config = readMetaOAuthConfig();
+    if (!config) return { configured: false as const, status: "unconfigured" as const };
     const connection = await nexareplyRepository.getMetaConnection(scope);
     const vault = connection?.credentialMode === "tenant_vault" ? await nexareplyRepository.getMetaTokenVault(scope) : null;
     if (connection?.pageId && vault?.encryptedPageToken) {
       try {
-        await graphRequest<{ success?: boolean }>(`${encodeURIComponent(connection.pageId)}/subscribed_apps`, { method: "DELETE", accessToken: openMetaPageToken(vault.encryptedPageToken) });
+        const pageAccessToken = openMetaPageToken(vault.encryptedPageToken);
+        await graphRequest<{ success?: boolean }>(`${encodeURIComponent(connection.pageId)}/subscribed_apps`, {
+          method: "DELETE",
+          accessToken: pageAccessToken,
+          appSecretProof: appSecretProof(pageAccessToken, config.appSecret),
+        });
       } catch {
         return { configured: true as const, status: "disconnect_failed" as const };
       }
@@ -560,7 +565,8 @@ export const metaMessengerService = {
   },
 
   async sendText(scope: WorkspaceScope, input: { psid: string; text: string }) {
-    if (!readMetaOAuthConfig()) return { delivered: false as const, status: "unconfigured" as const, error: "Meta integration is not configured." };
+    const config = readMetaOAuthConfig();
+    if (!config) return { delivered: false as const, status: "unconfigured" as const, error: "Meta integration is not configured." };
     const connection = await nexareplyRepository.getMetaConnection(scope);
     if (!connection?.pageId || connection.status !== "connected") return { delivered: false as const, status: connection?.status ?? "unconfigured", error: "Meta Page is not connected." };
     try {
@@ -572,6 +578,7 @@ export const metaMessengerService = {
       const response = await graphRequest<{ recipient_id?: string; message_id?: string }>(`${connection.pageId}/messages`, {
         method: "POST",
         accessToken: pageAccessToken,
+        appSecretProof: appSecretProof(pageAccessToken, config.appSecret),
         body: { recipient: { id: input.psid }, messaging_type: "RESPONSE", message: { text: input.text } },
       });
       await nexareplyRepository.updateMetaConnectionStatus(scope, { status: "connected", delivery: true });
