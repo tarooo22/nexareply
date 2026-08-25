@@ -8,7 +8,7 @@ vi.mock("@/lib/trpc", () => ({
       workspace: {
         conversations: {
           list: { useQuery: () => ({ isLoading: false, isError: false, data: [{ id: 11, customerName: "ანა", customerPhone: null, preferredProduct: null, humanActive: false, aiState: "active", priority: "normal", lastMessageAt: new Date(), updatedAt: new Date(), preview: "ტესტი" }], refetch: vi.fn() }) },
-          messages: { useQuery: () => ({ isLoading: false, data: [{ id: 1, sender: "ai", isDraft: true, deliveryStatus: "draft", body: "ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით.", createdAt: new Date(), draftEvidence: [] }, { id: 2, sender: "operator", isDraft: false, deliveryStatus: "sent", body: "ოპერატორის პასუხი", createdAt: new Date(), draftEvidence: [] }], refetch: vi.fn() }) },
+          messages: { useQuery: () => ({ isLoading: false, data: [{ id: 1, sender: "ai", isDraft: true, automated: false, deliveryStatus: "draft", body: "ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით.", createdAt: new Date(), draftEvidence: [] }, { id: 2, sender: "ai", isDraft: false, automated: true, deliveryStatus: "sent", body: "დადასტურებული პასუხი", createdAt: new Date(), draftEvidence: [] }, { id: 3, sender: "operator", isDraft: false, automated: false, deliveryStatus: "sent", body: "ოპერატორის პასუხი", createdAt: new Date(), draftEvidence: [] }], refetch: vi.fn() }) },
           context: { useQuery: () => ({ data: { customer: { hasMessengerIdentity: true }, activeTicket: null }, refetch: vi.fn() }) },
           createDraft: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isError: false }) },
           takeover: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
@@ -21,6 +21,9 @@ vi.mock("@/lib/trpc", () => ({
               useQuery: () => ({ data: { status: "connected", page: { id: "page-1", name: "სარკე•Mirror" } } }),
             },
           },
+        },
+        assistant: {
+          settings: { useQuery: () => ({ data: { autoReplyEnabled: true } }) },
         },
       },
     },
@@ -36,8 +39,10 @@ describe("Workspace Inbox connected Page context", () => {
     expect(markup).toContain("აქტიური Facebook გვერდი: სარკე•Mirror");
     expect(markup).toContain("გვერდი: სარკე•Mirror");
     expect(markup).toContain("ავტორი: NexaReply AI · მონახაზი");
+    expect(markup).toContain("ავტორი: NexaReply AI · ავტომატურად გაგზავნა");
     expect(markup).toContain("ჯერ არ არის გაგზავნილი");
     expect(markup).toContain("უპასუხა: ოპერატორმა");
     expect(markup).toContain("Facebook გვერდიდან გაიგზავნა");
+    expect(markup).toContain("უსაფრთხო auto-reply: ჩართულია — მხოლოდ დამტკიცებულ პასუხებზე");
   });
 });

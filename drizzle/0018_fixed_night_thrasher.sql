@@ -1,0 +1,2 @@
+ALTER TABLE `messages` ADD `automationEventId` varchar(160);--> statement-breakpoint
+ALTER TABLE `messages` ADD CONSTRAINT `messages_org_automation_event_unique` UNIQUE(`organizationId`,`automationEventId`);

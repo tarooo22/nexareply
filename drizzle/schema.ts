@@ -62,6 +62,7 @@ export const organizations = mysqlTable("organizations", {
   replyLength: mysqlEnum("replyLength", ["short", "normal", "detailed"]).notNull().default("normal"),
   fallbackMessage: text("fallbackMessage"),
   debounceSeconds: int("debounceSeconds").notNull().default(10),
+  autoReplyEnabled: boolean("autoReplyEnabled").notNull().default(false),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => [uniqueIndex("organizations_slug_unique").on(table.slug), index("organizations_plan_idx").on(table.planId)]);
@@ -321,13 +322,16 @@ export const messages = mysqlTable("messages", {
   body: text("body").notNull(),
   source: mysqlEnum("source", ["demo", "manual", "ai", "meta", "system"]).notNull().default("demo"),
   inboundEventId: varchar("inboundEventId", { length: 160 }),
+  automationEventId: varchar("automationEventId", { length: 160 }),
   isDraft: boolean("isDraft").notNull().default(false),
+  automated: boolean("automated").notNull().default(false),
   draftEvidence: json("draftEvidence"),
   deliveryStatus: mysqlEnum("deliveryStatus", ["received", "draft", "queued", "sent", "failed"]).notNull().default("received"),
   approvedAt: timestamp("approvedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => [
   uniqueIndex("messages_org_inbound_event_unique").on(table.organizationId, table.inboundEventId),
+  uniqueIndex("messages_org_automation_event_unique").on(table.organizationId, table.automationEventId),
   index("messages_org_conversation_created_idx").on(table.organizationId, table.conversationId, table.createdAt),
 ]);
 
@@ -379,7 +383,7 @@ export const notifications = mysqlTable("notifications", {
   id: int("id").autoincrement().primaryKey(),
   organizationId: int("organizationId").notNull(),
   userId: int("userId"),
-  type: mysqlEnum("type", ["human_takeover", "high_priority_lead", "needs_human", "ai_paused"]).notNull(),
+  type: mysqlEnum("type", ["human_takeover", "high_priority_lead", "needs_human", "ai_paused", "delivery_failed"]).notNull(),
   title: varchar("title", { length: 180 }).notNull(),
   body: text("body").notNull(),
   relatedConversationId: int("relatedConversationId"),

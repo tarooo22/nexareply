@@ -650,11 +650,33 @@ export const nexareplyRepository = {
     return db.select().from(messages).where(and(eq(messages.organizationId, scope.organizationId), eq(messages.conversationId, conversationId))).orderBy(asc(messages.createdAt));
   },
 
-  async addMessage(scope: WorkspaceScope, input: { conversationId: number; sender: "customer" | "ai" | "operator" | "system"; body: string; source: "demo" | "manual" | "ai" | "meta" | "system"; inboundEventId?: string; isDraft?: boolean; draftEvidence?: DraftEvidence[]; approvedAt?: Date | null; deliveryStatus?: "received" | "draft" | "queued" | "sent" | "failed" }) {
+  async addMessage(scope: WorkspaceScope, input: { conversationId: number; sender: "customer" | "ai" | "operator" | "system"; body: string; source: "demo" | "manual" | "ai" | "meta" | "system"; inboundEventId?: string; automationEventId?: string; automated?: boolean; isDraft?: boolean; draftEvidence?: DraftEvidence[]; approvedAt?: Date | null; deliveryStatus?: "received" | "draft" | "queued" | "sent" | "failed" }) {
     const db = await requireDb();
     const deliveryStatus = input.deliveryStatus ?? (input.isDraft ? "draft" : input.sender === "customer" ? "received" : "sent");
     await db.insert(messages).values({ organizationId: scope.organizationId, ...input, deliveryStatus });
     await db.update(conversations).set({ preview: input.body, lastMessageAt: new Date(), ...(input.sender === "customer" ? { lastInboundAt: new Date() } : {}) }).where(and(eq(conversations.id, input.conversationId), eq(conversations.organizationId, scope.organizationId)));
+  },
+
+  async reserveAutomatedReply(scope: WorkspaceScope, input: { conversationId: number; body: string; automationEventId: string; draftEvidence: DraftEvidence[] }) {
+    const db = await requireDb();
+    const existing = (await db.select().from(messages).where(and(eq(messages.organizationId, scope.organizationId), eq(messages.automationEventId, input.automationEventId))).limit(1))[0];
+    if (existing) return { created: false as const, message: existing };
+    try {
+      await db.insert(messages).values({ organizationId: scope.organizationId, conversationId: input.conversationId, sender: "ai", body: input.body, source: "ai", automationEventId: input.automationEventId, automated: true, isDraft: false, draftEvidence: input.draftEvidence, deliveryStatus: "queued" });
+    } catch {
+      const duplicate = (await db.select().from(messages).where(and(eq(messages.organizationId, scope.organizationId), eq(messages.automationEventId, input.automationEventId))).limit(1))[0];
+      if (duplicate) return { created: false as const, message: duplicate };
+      throw new Error("ავტომატური პასუხის დაჯავშნა ვერ მოხერხდა.");
+    }
+    const message = (await db.select().from(messages).where(and(eq(messages.organizationId, scope.organizationId), eq(messages.automationEventId, input.automationEventId))).limit(1))[0];
+    if (!message) throw new Error("ავტომატური პასუხის ჩანაწერი ვერ მოიძებნა.");
+    await db.update(conversations).set({ preview: input.body, lastMessageAt: new Date() }).where(and(eq(conversations.id, input.conversationId), eq(conversations.organizationId, scope.organizationId)));
+    return { created: true as const, message };
+  },
+
+  async setAutomatedReplyDelivery(scope: WorkspaceScope, messageId: number, deliveryStatus: "sent" | "failed") {
+    const db = await requireDb();
+    await db.update(messages).set({ deliveryStatus }).where(and(eq(messages.id, messageId), eq(messages.organizationId, scope.organizationId), eq(messages.sender, "ai"), eq(messages.automated, true)));
   },
 
   async setHumanTakeover(scope: WorkspaceScope, conversationId: number, active: boolean) {
@@ -735,7 +757,7 @@ export const nexareplyRepository = {
     else for (const id of ids) await db.update(notifications).set({ readAt: new Date() }).where(and(eq(notifications.id, id), eq(notifications.organizationId, scope.organizationId)));
   },
 
-  async createNotificationOnce(scope: WorkspaceScope, input: { type: "human_takeover" | "high_priority_lead" | "needs_human" | "ai_paused"; title: string; body: string; relatedConversationId?: number; dedupeKey: string }) {
+  async createNotificationOnce(scope: WorkspaceScope, input: { type: "human_takeover" | "high_priority_lead" | "needs_human" | "ai_paused" | "delivery_failed"; title: string; body: string; relatedConversationId?: number; dedupeKey: string }) {
     const db = await requireDb();
     const found = (await db.select().from(notifications).where(and(eq(notifications.organizationId, scope.organizationId), eq(notifications.dedupeKey, input.dedupeKey))).limit(1))[0];
     if (found) return found;
@@ -920,13 +942,14 @@ export const nexareplyRepository = {
     return (await db.select().from(organizations).where(eq(organizations.id, scope.organizationId)).limit(1))[0];
   },
 
-  async updateAssistantSettings(scope: WorkspaceScope, input: { aiPersona?: string; aiTone?: string; replyLength?: "short" | "normal" | "detailed"; fallbackMessage?: string }) {
+  async updateAssistantSettings(scope: WorkspaceScope, input: { aiPersona?: string; aiTone?: string; replyLength?: "short" | "normal" | "detailed"; fallbackMessage?: string; autoReplyEnabled?: boolean }) {
     const db = await requireDb();
     const patch: Record<string, unknown> = {};
     if (input.aiPersona !== undefined) patch.aiPersona = input.aiPersona;
     if (input.aiTone !== undefined) patch.aiTone = input.aiTone;
     if (input.replyLength !== undefined) patch.replyLength = input.replyLength;
     if (input.fallbackMessage !== undefined) patch.fallbackMessage = input.fallbackMessage;
+    if (input.autoReplyEnabled !== undefined) patch.autoReplyEnabled = input.autoReplyEnabled;
     if (Object.keys(patch).length) await db.update(organizations).set(patch).where(eq(organizations.id, scope.organizationId));
     await ensureOnboarding(scope);
     await db.update(organizationOnboarding).set({ assistantReviewedAt: new Date() }).where(eq(organizationOnboarding.organizationId, scope.organizationId));

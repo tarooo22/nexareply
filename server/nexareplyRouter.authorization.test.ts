@@ -44,6 +44,7 @@ describe("owner-only NexaReply router procedures", () => {
     await expect(caller.nexareply.workspace.memberships.invitations.cancel({ organizationId: 1, invitationId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.nexareply.workspace.memberships.invitations.resend({ organizationId: 1, invitationId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.nexareply.workspace.imports.commit({ organizationId: 1, fileName: "catalog.csv", base64: "YQ==" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.nexareply.workspace.assistant.update({ organizationId: 1, aiPersona: "უსაფრთხო გაყიდვების კონსულტანტი", aiTone: "თბილი და ზუსტი", replyLength: "normal", fallbackMessage: "ოპერატორი დაგიბრუნდებათ", autoReplyEnabled: true })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("forbids an owner from reading or mutating invitations in another organization", async () => {

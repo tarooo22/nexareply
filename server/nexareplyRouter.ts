@@ -60,11 +60,11 @@ function safeDraftEvidence(value: unknown) {
     return [{ kind, label: label.slice(0, 180), ...(typeof candidate.detail === "string" ? { detail: candidate.detail.slice(0, 180) } : {}) }];
   });
 }
-function messageDto(row: any) { return { id: row.id, conversationId: row.conversationId, sender: row.sender, body: row.body, source: row.source, isDraft: row.isDraft, draftEvidence: safeDraftEvidence(row.draftEvidence), deliveryStatus: row.deliveryStatus, approvedAt: row.approvedAt, createdAt: row.createdAt }; }
+function messageDto(row: any) { return { id: row.id, conversationId: row.conversationId, sender: row.sender, body: row.body, source: row.source, isDraft: row.isDraft, automated: Boolean(row.automated), draftEvidence: safeDraftEvidence(row.draftEvidence), deliveryStatus: row.deliveryStatus, approvedAt: row.approvedAt, createdAt: row.createdAt }; }
 function alertDto(row: any) { return { id: row.id, type: row.type, title: row.title, body: row.body, relatedConversationId: row.relatedConversationId, readAt: row.readAt, createdAt: row.createdAt }; }
 function analyticsDto(row: any) { return { conversationCount: row.conversationCount, aiReplies: row.aiReplies, humanReplies: row.humanReplies, qualifiedLeads: row.qualifiedLeads, handoffs: row.handoffs, draftOrderCount: row.draftOrderCount, responseRate: row.responseRate, dailyVolume: row.dailyVolume.map((day: any) => ({ day: day.day, ai: day.ai, human: day.human })) }; }
 function ticketDto(row: any) { return { ticket: { id: row.ticket.id, conversationId: row.ticket.conversationId, reason: row.ticket.reason, status: row.ticket.status, priority: row.ticket.priority, createdAt: row.ticket.createdAt, updatedAt: row.ticket.updatedAt }, conversation: conversationDto(row.conversation) }; }
-function assistantDto(row: any) { return { aiPersona: row?.aiPersona ?? "მეგობრული გაყიდვების კონსულტანტი", aiTone: row?.aiTone ?? "თბილი და კონკრეტული", replyLength: row?.replyLength ?? "normal", fallbackMessage: row?.fallbackMessage ?? "ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით." }; }
+function assistantDto(row: any) { return { aiPersona: row?.aiPersona ?? "მეგობრული გაყიდვების კონსულტანტი", aiTone: row?.aiTone ?? "თბილი და კონკრეტული", replyLength: row?.replyLength ?? "normal", fallbackMessage: row?.fallbackMessage ?? "ზუსტ დეტალს გადავამოწმებ და მალე დაგიბრუნდებით.", autoReplyEnabled: Boolean(row?.autoReplyEnabled) }; }
 async function productAssetDto(row: any) { const { url } = await storageGet(row.storageKey); return { id: row.id, productId: row.productId, url, mimeType: row.mimeType, byteSize: row.byteSize, width: row.width, height: row.height, altText: row.altText, sortOrder: row.sortOrder, isPrimary: row.isPrimary, createdAt: row.createdAt, updatedAt: row.updatedAt }; }
 function knowledgeDraftDto(row: any) { return { source: { id: row.source.id, title: row.source.title, originalText: row.source.originalText, status: row.source.status, version: row.source.version, createdAt: row.source.createdAt, updatedAt: row.source.updatedAt }, draft: { id: row.draft.id, sourceId: row.draft.sourceId, title: row.draft.title, body: row.draft.body, category: row.draft.category, confidence: row.draft.confidence, status: row.draft.status, approvedKnowledgeFactId: row.draft.approvedKnowledgeFactId, reviewedAt: row.draft.reviewedAt, createdAt: row.draft.createdAt, updatedAt: row.draft.updatedAt } }; }
 
@@ -251,7 +251,11 @@ export const nexareplyRouter = router({
         const organization = await nexareplyRepository.getOrganization(await workspaceScope(ctx.user.id, input.organizationId));
         return assistantDto(organization);
       }),
-      update: protectedProcedure.input(organizationInput.extend({ aiPersona: z.string().min(8).max(180), aiTone: z.string().min(3).max(100), replyLength: z.enum(["short", "normal", "detailed"]), fallbackMessage: z.string().min(5).max(2000) })).mutation(async ({ ctx, input }) => assistantDto(await nexareplyRepository.updateAssistantSettings(await workspaceScope(ctx.user.id, input.organizationId, "owner"), input))),
+      update: protectedProcedure.input(organizationInput.extend({ aiPersona: z.string().min(8).max(180), aiTone: z.string().min(3).max(100), replyLength: z.enum(["short", "normal", "detailed"]), fallbackMessage: z.string().min(5).max(2000), autoReplyEnabled: z.boolean().default(false) })).mutation(async ({ ctx, input }) => {
+        const scope = await workspaceScope(ctx.user.id, input.organizationId, "owner");
+        if (input.autoReplyEnabled) await requireEntitlement(scope, "ai_automation");
+        return assistantDto(await nexareplyRepository.updateAssistantSettings(scope, input));
+      }),
     }),
     imports: router({
       preview: protectedProcedure.input(organizationInput.extend(uploadInput.shape)).mutation(async ({ ctx, input }) => previewCatalogImport(await workspaceScope(ctx.user.id, input.organizationId), input)),

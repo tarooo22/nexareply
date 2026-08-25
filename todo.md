@@ -412,3 +412,14 @@
 - [x] Add or extend regression coverage for every confirmed release-hardening change.
 - [x] Run TypeScript, full Vitest, production build and desktop/mobile public/protected smoke QA; record external-only blockers separately.
 - [x] Save a release-hardening checkpoint and report remaining owner-controlled dependencies.
+
+## Owner-approved safe auto-reply mode (Option A)
+
+- [x] Add a tenant-scoped, default-off owner setting for safe automatic replies without exposing credentials or weakening existing plan enforcement.
+- [x] Persist and expose an explicit AI-sent message audit state while retaining customer, operator, draft and failed delivery semantics.
+- [x] Extend the durable conversation worker to auto-send only exact catalog/approved-knowledge outcomes through the existing server-side Meta adapter, with idempotency and human-takeover rechecks.
+- [x] Preserve human handoff: unknown, paused, unconfigured, delivery-failed or entitlement-blocked conversations must never be auto-sent and must retain clear ticket/alert behavior.
+- [x] Add an accessible Georgian-first owner control/status disclosure in Assistant Settings and explicit AI-sent author/delivery labels in Inbox.
+- [x] Add security, tenant isolation, owner authorization, duplicate-job, takeover and UI regression coverage for the auto-reply path.
+- [x] Run schema migration, TypeScript, full Vitest, production build and desktop/mobile smoke QA; document the unchanged durable-worker SLA boundary.
+- [x] Save a checkpoint and report the live auto-reply guardrails, deployment requirements and deferred Meta public-rollout limitations.

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { inboxDeliveryLabel, inboxMessageAuthorLabel } from "@/lib/inboxPresentation";
+import { Switch } from "@/components/ui/switch";
 
 type WorkspaceProps = { organizationId: number; role: "owner" | "operator" };
 type OverviewProps = WorkspaceProps & { onNavigate: (section: string) => void };
@@ -2095,7 +2096,9 @@ export function WorkspaceAssistantScreen({
     aiTone: "",
     replyLength: "normal" as "short" | "normal" | "detailed",
     fallbackMessage: "",
+    autoReplyEnabled: false,
   });
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
   useEffect(() => {
     if (settings.data) setForm(settings.data);
   }, [settings.data]);
@@ -2157,7 +2160,17 @@ export function WorkspaceAssistantScreen({
           className="mt-5 space-y-3"
           onSubmit={event => {
             event.preventDefault();
-            update.mutate({ organizationId, ...form });
+            setSaveFeedback(null);
+            update.mutate(
+              { organizationId, ...form },
+              {
+                onSuccess: data => {
+                  setForm(data);
+                  setSaveFeedback(data.autoReplyEnabled ? "უსაფრთხო ავტომატური პასუხი ჩართულია." : "ავტომატური პასუხი გამორთულია; AI მხოლოდ მონახაზს შექმნის.");
+                  void settings.refetch();
+                },
+              }
+            );
           }}
         >
           <label className="block text-xs font-bold text-muted-foreground">
@@ -2211,6 +2224,28 @@ export function WorkspaceAssistantScreen({
               className="mt-1 min-h-24 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground disabled:opacity-60"
             />
           </label>
+          <div className="rounded-xl border border-primary/25 bg-primary/5 p-3" aria-describedby="safe-auto-reply-description">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <label htmlFor="safe-auto-reply" className="text-sm font-black text-foreground">
+                  უსაფრთხო ავტომატური პასუხი
+                </label>
+                <p id="safe-auto-reply-description" className="mt-1 text-xs leading-5 text-muted-foreground">
+                  იგზავნება მხოლოდ დადასტურებული Catalog/Knowledge პასუხი. უცნობ კითხვაზე პასუხი არ იგზავნება — იქმნება ticket და AI ჩერდება.
+                </p>
+              </div>
+              <Switch
+                id="safe-auto-reply"
+                checked={form.autoReplyEnabled}
+                onCheckedChange={autoReplyEnabled => setForm({ ...form, autoReplyEnabled })}
+                disabled={role !== "owner" || update.isPending}
+                aria-label="უსაფრთხო ავტომატური პასუხის ჩართვა ან გამორთვა"
+              />
+            </div>
+            <p className={`mt-2 text-xs font-bold ${form.autoReplyEnabled ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}`}>
+              {form.autoReplyEnabled ? "ჩართულია · owner-ის წესებით კონტროლდება" : "გამორთულია · AI პასუხი დარჩება მონახაზად"}
+            </p>
+          </div>
           <button
             disabled={role !== "owner" || update.isPending}
             className="min-h-11 w-full rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-50"
@@ -2219,8 +2254,9 @@ export function WorkspaceAssistantScreen({
           </button>
         </form>
         {update.isError ? (
-          <p className="mt-3 text-xs text-destructive">Settings ვერ შეინახა.</p>
+          <p className="mt-3 text-xs text-destructive" role="alert">Settings ვერ შეინახა.</p>
         ) : null}
+        {saveFeedback && !update.isError ? <p className="mt-3 text-xs font-bold text-emerald-700 dark:text-emerald-300" role="status">{saveFeedback}</p> : null}
       </aside>
     </div>
   );
@@ -2548,6 +2584,7 @@ export function WorkspaceInboxScreen({ organizationId, role }: WorkspaceProps) {
     { organizationId },
     { enabled: role === "owner" }
   );
+  const assistantSettings = trpc.nexareply.workspace.assistant.settings.useQuery({ organizationId });
   const draft =
     trpc.nexareply.workspace.conversations.createDraft.useMutation();
   const takeover =
@@ -2764,6 +2801,9 @@ export function WorkspaceInboxScreen({ organizationId, role }: WorkspaceProps) {
             ავტომატური დამუშავების 10-წამიანი გარანტია ჯერ durable worker
             hosting-ზეა დამოკიდებული.
           </p>
+          <p className={`mt-2 text-xs font-semibold ${assistantSettings.data?.autoReplyEnabled ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}`}>
+            უსაფრთხო auto-reply: {assistantSettings.data?.autoReplyEnabled ? "ჩართულია — მხოლოდ დამტკიცებულ პასუხებზე" : "გამორთულია — AI პასუხი რჩება მონახაზად"}
+          </p>
           {role === "owner" && pageStatus.data?.status === "connected" && pageStatus.data.page ? (
             <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
               აქტიური Facebook გვერდი: {pageStatus.data.page.name}. გაგზავნილი ოპერატორის პასუხი ამ გვერდიდან მიდის.
@@ -2976,7 +3016,7 @@ export function WorkspaceInboxScreen({ organizationId, role }: WorkspaceProps) {
                         </div>
                       ) : null}
                       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] opacity-80">
-                        <span>{inboxMessageAuthorLabel(message.sender, message.isDraft)}</span>
+                        <span>{inboxMessageAuthorLabel(message.sender, message.isDraft, message.automated)}</span>
                         <span aria-hidden="true">·</span>
                         <span className={`rounded-full border px-1.5 py-0.5 font-bold opacity-100 ${deliveryTone[message.deliveryStatus] ?? "border-border bg-background text-muted-foreground"}`}>
                           {inboxDeliveryLabel(message.deliveryStatus)}

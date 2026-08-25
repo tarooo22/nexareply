@@ -1,6 +1,6 @@
-export function inboxMessageAuthorLabel(sender: "customer" | "ai" | "operator" | "system", isDraft: boolean) {
+export function inboxMessageAuthorLabel(sender: "customer" | "ai" | "operator" | "system", isDraft: boolean, automated = false) {
   if (sender === "customer") return "მომწერი: კლიენტი";
-  if (sender === "ai") return isDraft ? "ავტორი: NexaReply AI · მონახაზი" : "ავტორი: NexaReply AI";
+  if (sender === "ai") return isDraft ? "ავტორი: NexaReply AI · მონახაზი" : automated ? "ავტორი: NexaReply AI · ავტომატურად გაგზავნა" : "ავტორი: NexaReply AI";
   if (sender === "operator") return "უპასუხა: ოპერატორმა";
   return "სისტემური მოვლენა";
 }

@@ -1,4 +1,4 @@
-import { createDatabaseBackedDemoDraft } from "./demoAiService";
+import { processSafeAutoReply } from "./demoAiService";
 import { nexareplyRepository, type WorkspaceScope } from "./nexareplyRepository";
 import crypto from "node:crypto";
 
@@ -14,7 +14,10 @@ export async function processDueConversationJobs(limit = 20) {
     const scope: WorkspaceScope = { organizationId: job.organizationId, role: "owner", isDemo: false };
     try {
       if (!job.conversationId) throw new Error("Conversation job has no conversationId");
-      await createDatabaseBackedDemoDraft(scope, job.conversationId, { automated: true });
+      const inboundEventId = typeof (job.payload as { latestInboundEventId?: unknown } | null)?.latestInboundEventId === "string"
+        ? (job.payload as { latestInboundEventId: string }).latestInboundEventId
+        : `worker-job:${job.id}`;
+      await processSafeAutoReply(scope, { conversationId: job.conversationId, inboundEventId });
       await nexareplyRepository.completeLeasedJob(scope, job.id, leaseToken, "completed");
       results.push({ jobId: job.id, status: "completed" });
     } catch (error) {

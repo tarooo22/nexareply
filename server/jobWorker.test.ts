@@ -6,13 +6,13 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("durable conversation worker lease flow", () => {
   it("claims jobs with one lease and completes only through the matching lease token", async () => {
-    vi.spyOn(nexareplyRepository, "claimDueConversationJobs").mockResolvedValue([{ id: 501, organizationId: 41, conversationId: 301 }] as never);
-    const draft = vi.spyOn(await import("./demoAiService"), "createDatabaseBackedDemoDraft").mockResolvedValue({ decision: "draft", text: "დადასტურებული პასუხი", source: "knowledge" });
+    vi.spyOn(nexareplyRepository, "claimDueConversationJobs").mockResolvedValue([{ id: 501, organizationId: 41, conversationId: 301, payload: { latestInboundEventId: "mid.worker.501" } }] as never);
+    const autoReply = vi.spyOn(await import("./demoAiService"), "processSafeAutoReply").mockResolvedValue({ status: "sent", source: "knowledge" });
     const complete = vi.spyOn(nexareplyRepository, "completeLeasedJob").mockResolvedValue(undefined);
 
     await expect(processDueConversationJobs(10)).resolves.toEqual([{ jobId: 501, status: "completed" }]);
 
-    expect(draft).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 41 }), 301, { automated: true });
+    expect(autoReply).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 41 }), { conversationId: 301, inboundEventId: "mid.worker.501" });
     expect(complete).toHaveBeenCalledWith(expect.objectContaining({ organizationId: 41 }), 501, expect.any(String), "completed");
     const leaseToken = vi.mocked(nexareplyRepository.claimDueConversationJobs).mock.calls[0]?.[1];
     expect(complete).toHaveBeenCalledWith(expect.anything(), 501, leaseToken, "completed");
